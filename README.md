@@ -1,36 +1,155 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 💍 Bem Casados App
 
-## Getting Started
+**Plataforma de lista de casamento** onde convidados podem contribuir com presentes convertidos em saldo financeiro para os noivos. Integração de pagamentos e gerenciamento de convidados + eventos.
 
-First, run the development server:
+---
+
+## Sumário
+
+- [Funcionalidades](#funcionalidades)
+- [Tecnologias](#tecnologias)
+- [Pré-requisitos](#pré-requisitos)
+- [Instalação rápida](#instalação-rápida)
+- [Variáveis de ambiente](#variáveis-de-ambiente)
+- [Banco de dados (Docker + Prisma)](#banco-de-dados-docker--prisma)
+- [Scripts úteis](#scripts-úteis)
+- [Estrutura do projeto](#estrutura-do-projeto)
+- [Contribuindo](#contribuindo)
+- [Licença](#licença)
+
+---
+
+## 🚀 Funcionalidades
+
+- Lista de presentes / itens por evento
+- Checkout com cálculo de taxas (markup) para repassar custos ao pagador
+- Integração com gateway Asaas (PIX, Boleto, Cartão)
+- Gestão de convidados e mensagens
+- Painel básico para noivos (criação/edição de evento e itens)
+
+## 🛠 Tecnologias
+
+- Next.js (App Router) — versão utilizada: 16.1.1
+- React 19
+- TypeScript
+- Tailwind CSS + ShadcnUI
+- Prisma (ORM) — v7
+- PostgreSQL (container Docker)
+- Gerenciador de pacotes: pnpm
+
+> Consulte `package.json` para versões completas de dependências.
+
+## ⚙️ Pré-requisitos
+
+- Node.js v18+ (ou conforme compatibilidade do projeto)
+- pnpm
+- Docker & Docker Compose
+
+## Instalação rápida
+
+1. Clone o repositório
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <URL-DO-REPO>
+cd bem-casados-app
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Instale dependências
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Crie um arquivo `.env` (veja exemplo abaixo em **Variáveis de ambiente**)
 
-## Learn More
+4. Sobe o banco de dados (Docker)
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+docker compose up -d
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. Rode migrations e seed
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npx prisma migrate dev --name init
+npx prisma db seed
+```
 
-## Deploy on Vercel
+6. Inicie o projeto
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+pnpm dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+O app ficará disponível em: `http://localhost:3000`
+
+---
+
+## Variáveis de ambiente
+
+Crie um `.env` na raiz com, pelo menos, as seguintes chaves:
+
+```env
+# Banco de dados
+DATABASE_URL="postgresql://admin:password123@localhost:5433/bem_casados_db?schema=public"
+
+# Asaas (exemplo)
+ASAAS_API_KEY="<sua_chave_asaas>"
+ASAAS_URL="https://sandbox.asaas.com/api/v3"
+
+# URL pública do app (usada em webhooks/redirects)
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+```
+
+Ajuste valores conforme ambiente (sandbox/produção).
+
+---
+
+## Banco de dados (Docker + Prisma)
+
+O projeto inclui `docker-compose.yml` para subir um container PostgreSQL mapeado na porta `5433` (host).
+
+- Iniciar DB: `docker compose up -d`
+- Aplicar migrations: `npx prisma migrate dev`
+- Popular dados: `npx prisma db seed`
+- Abrir Prisma Studio: `npx prisma studio`
+
+---
+
+## Scripts úteis
+
+- `pnpm dev` — Inicia o servidor em modo desenvolvimento
+- `pnpm build` — Gera build de produção
+- `pnpm start` — Inicia o servidor a partir do build
+- `pnpm lint` — Roda ESLint
+
+(Os comandos Prisma são executados via `npx prisma ...`)
+
+---
+
+## Estrutura do projeto
+
+- `src/app` — rotas e páginas (Next.js App Router)
+- `src/components` — componentes UI (Shadcn)
+- `src/lib` — clientes e helpers (ex.: `prisma.ts`)
+- `prisma` — schema, seeds e migrations
+- `docker-compose.yml` — configuração do PostgreSQL
+
+---
+
+## Contribuindo
+
+Contribuições são bem-vindas: abra issues ou PRs com mudanças pequenas e descrições claras.
+
+- Crie uma branch com o nome `feature/<descrição>`
+- Abra PR direcionado para `main`
+
+---
+
+## Licença
+
+Este projeto está sob a licença MIT — verifique o arquivo `LICENSE` (se houver).
+
+---
+
+Desenvolvido com ❤️ para o casamento.

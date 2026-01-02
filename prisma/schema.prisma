@@ -1,12 +1,71 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // Modelo do casamento
-model Event
+model Event{
+  id String @id @default(uuid())
+  slug String @unique
+  title String
+  coupleName String
+  eventDate   DateTime
+  asaasApiKey String?
+  walletId String?
+  gifts Gift[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+//Presentes do casamento
+model Gift {
+  id String @id @default(uuid())
+  title String
+  description String?
+  price Decimal @db.Decimal(10, 2)
+  imageUrl String?
+  category String?
+  available Boolean @default(true)
+
+  //Relacionamento com o evento
+  eventId String
+  event Event @relation(fields: [eventId], references: [id])
+
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+//Transações Financeiras
+model Transaction{
+  id String @id @default(uuid())
+  
+  //Relacionameto com o presente
+  giftId String
+  gift Gift @relation(fields: [giftId], references: [id])
+
+  //Dados do Convidado
+  guestName String
+  guestEmail String
+  guestCPF String
+  message String? @db.Text
+
+  //Valores Financeiros
+  amountOriginal Decimal @db.Decimal(10, 2)
+  amountCharged Decimal @db.Decimal(10, 2)
+  feeAmount Decimal @db.Decimal(10, 2)
+
+  //Asaas
+  asaasId String? @unique
+  paymentLink String?
+  status String @default("PENDING")
+  paymentMethod String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
