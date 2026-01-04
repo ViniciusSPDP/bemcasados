@@ -51,4 +51,4 @@ build
 /coverage
 /.prisma
 /prisma/*.db
-/prisma/*.db-journal
+/prisma/*.db-journal              
