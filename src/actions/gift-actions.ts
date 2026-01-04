@@ -1,11 +1,15 @@
 // src/actions/gift-actions.ts
 "use server";
 
+import { verifySession } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { uploadFileToS3 } from "@/lib/s3";
 import { revalidatePath } from "next/cache";
 
 export async function createGift(formData: FormData) {
+
+    const session = await verifySession()
+
 
     const title = formData.get("title") as string;
     const price = parseFloat(formData.get("price") as string);
@@ -15,19 +19,21 @@ export async function createGift(formData: FormData) {
     let imageUrl = "";
 
     if (imageFile && imageFile.size > 0) {
-        try{
+        try {
             imageUrl = await uploadFileToS3(imageFile);
         } catch (error) {
             console.error("Erro ao fazer upload da imagem para o S3:", error);
             throw new Error("Erro ao fazer upload da imagem");
         }
-    }else{
+    } else {
         imageUrl = `https://placehold.co/600x400?text=${encodeURIComponent(title)}`;
     }
 
-    const event = await prisma.event.findUnique({
-        where: { slug: "casamento-teste"},
-    });
+    const event = await prisma.event.findFirst({
+        where: {
+            userId: session.userId
+        }
+    })
 
     if (!event) {
         throw new Error("Evento não encontrado");
@@ -49,10 +55,20 @@ export async function createGift(formData: FormData) {
 }
 
 export async function deleteGift(id: string) {
-    await prisma.gift.delete({
+    const session = await verifySession();
+
+    const gift = await prisma.gift.findUnique({
         where: { id },
+        include: { event: true },
     });
 
-    revalidatePath("/admin")
-    revalidatePath("/")
+    if (gift && gift.event.userId === session.userId) {
+        await prisma.gift.delete({
+            where: { id },
+        });
+        revalidatePath("/admin")
+    } else {
+        throw new Error("Não autorizado.");
+    }
+
 }

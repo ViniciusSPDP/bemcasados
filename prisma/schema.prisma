@@ -7,6 +7,19 @@ datasource db {
   provider = "postgresql"
 }
 
+//Modelo do Usuario
+model User {
+  id String @id @default(uuid())
+  name String
+  email String @unique
+  password String
+  events Event[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+
 // Modelo do casamento
 model Event{
   id String @id @default(uuid())
@@ -16,6 +29,8 @@ model Event{
   eventDate   DateTime
   asaasApiKey String?
   walletId String?
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   gifts Gift[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -2,6 +2,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
+import bcrypt from "bcryptjs"; // Importante para criar a senha hash
 import "dotenv/config";
 
 const connectionString = process.env.DATABASE_URL!;
@@ -18,19 +19,41 @@ const prisma = new PrismaClient({
 
 async function main() {
   console.log("🌱 Iniciando o seed...");
+
+  // 1. Criar o Usuário (Dono do Evento)
+  // Vamos definir uma senha padrão "Vinicius123" para testes
+  const hashedPassword = await bcrypt.hash("Vinicius123@", 10);
+
+  const user = await prisma.user.upsert({
+    where: { email: "noivos@teste.com" },
+    update: {}, // Se já existe, não faz nada
+    create: {
+      name: "Romeu e Julieta",
+      email: "noivos@teste.com",
+      password: hashedPassword,
+    },
+  });
+
+  console.log(`👤 Usuário criado/encontrado: ${user.email} (Senha: 123456)`);
+
+  // 2. Criar o Evento vinculado ao Usuário
   const event = await prisma.event.upsert({
     where: { slug: "casamento-teste" },
-    update: {},
+    update: {
+        userId: user.id // Garante que o evento esteja vinculado caso já existisse
+    }, 
     create: {
       slug: "casamento-teste",
       title: "Casamento Teste & Sandbox",
       coupleName: "Romeu & Julieta",
       eventDate: new Date("2025-12-25"),
+      userId: user.id, // <--- OBRIGATÓRIO AGORA
     },
   });
 
   console.log(`💍 Evento criado: ${event.title}`);
 
+  // 3. Criar os Presentes
   const gifts = [
     { title: "Cotinha da Lua de Mel", price: 100.0, category: "Viagem" },
     { title: "Jantar Romântico", price: 250.0, category: "Experiência" },
