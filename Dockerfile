@@ -29,4 +29,4 @@ RUN pnpm build
 EXPOSE 3000
 
 # Comando para iniciar a aplicação em produção
-CMD ["pnpm", "start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && pnpm start"]
