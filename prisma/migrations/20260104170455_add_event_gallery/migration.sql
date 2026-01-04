@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Event" ADD COLUMN     "galleryImages" TEXT[] DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN     "introSubtitle" TEXT NOT NULL DEFAULT 'PARA UMA MISSÃO ESPECIAL',
+ADD COLUMN     "introTitle" TEXT NOT NULL DEFAULT 'VOCÊ FOI CONVOCADO',
+ADD COLUMN     "videoUrl" TEXT,
+ADD COLUMN     "welcomeMessage" TEXT;

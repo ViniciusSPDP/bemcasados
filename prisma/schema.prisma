@@ -9,46 +9,52 @@ datasource db {
 
 //Modelo do Usuario
 model User {
-  id String @id @default(uuid())
-  name String
-  email String @unique
-  password String
-  events Event[]
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  events    Event[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-
-
 // Modelo do casamento
-model Event{
-  id String @id @default(uuid())
-  slug String @unique
-  title String
+model Event {
+  id         String   @id @default(uuid())
+  slug       String   @unique
+  title      String
   coupleName String
-  eventDate   DateTime
+  eventDate  DateTime
+
+  //Story
+  galleryImages String[] @default([])
+  videoUrl String?
+  introTitle String @default("VOCÊ FOI CONVOCADO")
+  introSubtitle String @default("PARA UMA MISSÃO ESPECIAL")
+  welcomeMessage String? @db.Text
+
   asaasApiKey String?
-  walletId String?
-  userId String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  gifts Gift[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  walletId    String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gifts       Gift[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 //Presentes do casamento
 model Gift {
-  id String @id @default(uuid())
-  title String
+  id          String  @id @default(uuid())
+  title       String
   description String?
-  price Decimal @db.Decimal(10, 2)
-  imageUrl String?
-  category String?
-  available Boolean @default(true)
+  price       Decimal @db.Decimal(10, 2)
+  imageUrl    String?
+  category    String?
+  available   Boolean @default(true)
 
   //Relacionamento com o evento
   eventId String
-  event Event @relation(fields: [eventId], references: [id])
+  event   Event  @relation(fields: [eventId], references: [id])
 
   transactions Transaction[]
 
@@ -57,28 +63,28 @@ model Gift {
 }
 
 //Transações Financeiras
-model Transaction{
+model Transaction {
   id String @id @default(uuid())
-  
+
   //Relacionameto com o presente
   giftId String
-  gift Gift @relation(fields: [giftId], references: [id])
+  gift   Gift   @relation(fields: [giftId], references: [id])
 
   //Dados do Convidado
-  guestName String
+  guestName  String
   guestEmail String
-  guestCPF String
-  message String? @db.Text
+  guestCPF   String
+  message    String? @db.Text
 
   //Valores Financeiros
   amountOriginal Decimal @db.Decimal(10, 2)
-  amountCharged Decimal @db.Decimal(10, 2)
-  feeAmount Decimal @db.Decimal(10, 2)
+  amountCharged  Decimal @db.Decimal(10, 2)
+  feeAmount      Decimal @db.Decimal(10, 2)
 
   //Asaas
-  asaasId String? @unique
-  paymentLink String?
-  status String @default("PENDING")
+  asaasId       String? @unique
+  paymentLink   String?
+  status        String  @default("PENDING")
   paymentMethod String
 
   createdAt DateTime @default(now())
