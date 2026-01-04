@@ -5,6 +5,7 @@ import { Trash2, DollarSign, Gift, TrendingUp } from "lucide-react";
 import Image from "next/image";
 
 export const dynamic = "force-dynamic";
+const isLocal = process.env.NODE_ENV === 'development';
 
 interface StatCardProps {
     icon: React.ReactNode;
@@ -91,7 +92,7 @@ export default async function AdminPage() {
                             fill
                             className="object-cover"
                             sizes="(max-width: 768px) 100vw, 48px"
-                            unoptimized
+                            unoptimized={isLocal}
                           />
                         ) : (
                             <div className="w-full h-full bg-gray-300" />
