@@ -47,7 +47,7 @@ export default function LandingPage() {
                   Começar Agora <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
               </Link>
-              <Link href="/casamento-teste" className="w-full sm:w-auto">
+              <Link href="/casamento-principal" className="w-full sm:w-auto">
                  <Button variant="outline" size="lg" className="w-full h-14 text-lg rounded-full border-gray-300 hover:bg-gray-50 text-gray-600">
                   Ver Exemplo Real
                 </Button>
