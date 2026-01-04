@@ -2,8 +2,16 @@ import { prisma } from "@/lib/prisma";
 import { GiftForm } from "@/components/private/admin/gift-form";
 import { deleteGift } from "@/actions/gift-actions";
 import { Trash2, DollarSign, Gift, TrendingUp } from "lucide-react";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
+
+interface StatCardProps {
+    icon: React.ReactNode;
+    color: string;
+    label: string;
+    value: string;
+}
 
 export default async function AdminPage() {
 
@@ -71,14 +79,20 @@ export default async function AdminPage() {
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <h2 className="text-lg font-bold text-gray-800 mb-4">Presentes Cadastrados</h2>
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+              <div className="space-y-3 max-h-100 overflow-y-auto pr-2">
                 {gifts.map((gift) => (
                   <div key={gift.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gray-200 rounded-md overflow-hidden">
-                         {/* Fallback simples se não tiver imagem */}
+                      <div className="w-12 h-12 bg-gray-200 rounded-md overflow-hidden relative">
                         {gift.imageUrl ? (
-                            <img src={gift.imageUrl} alt="" className="w-full h-full object-cover" />
+                          <Image
+                            src={gift.imageUrl}
+                            alt={gift.title}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 48px"
+                            unoptimized
+                          />
                         ) : (
                             <div className="w-full h-full bg-gray-300" />
                         )}
@@ -119,7 +133,7 @@ export default async function AdminPage() {
                       </span>
                     </div>
                     <p className="text-sm text-rose-600 mb-1">🎁 {t.gift.title}</p>
-                    {t.message && <p className="text-sm text-gray-500 italic">"{t.message}"</p>}
+                    {t.message && <p className="text-sm text-gray-500 italic">&quot;{t.message}&quot;</p>}
                   </div>
                 ))}
               </div>
@@ -133,7 +147,7 @@ export default async function AdminPage() {
 }
 
 // Pequeno componente local apenas para organizar os cards
-function StatCard({ icon, color, label, value }: any) {
+function StatCard({ icon, color, label, value }: StatCardProps) {
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
             <div className={`p-3 rounded-full ${color}`}>{icon}</div>

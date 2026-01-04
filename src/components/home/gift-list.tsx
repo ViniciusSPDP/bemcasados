@@ -3,24 +3,25 @@
 import { useState } from "react";
 import { CheckoutModal } from "../private/checkout/checkout-modal";
 import { Gift, Heart } from "lucide-react";
+import Image from "next/image";
 
 //Tipagem
-interface GiftItem{
-    id: string;
-    title: string;
-    price: number;
-    imageUrl: string | null;
-    category: string | null;
+interface GiftItem {
+  id: string;
+  title: string;
+  price: number;
+  imageUrl: string | null;
+  category: string | null;
 }
 
-interface GiftListProps{
-    gifts: GiftItem[];
+interface GiftListProps {
+  gifts: GiftItem[];
 }
 
-export function GiftList({ gifts }: GiftListProps){
-    const [selectedGift, setSelectedGift] = useState<GiftItem | null>(null);
+export function GiftList({ gifts }: GiftListProps) {
+  const [selectedGift, setSelectedGift] = useState<GiftItem | null>(null);
 
-    return (
+  return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {gifts.map((gift) => (
@@ -31,11 +32,13 @@ export function GiftList({ gifts }: GiftListProps){
             {/* Imagem do Presente */}
             <div className="relative h-48 bg-stone-100 overflow-hidden">
               {gift.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   src={gift.imageUrl}
                   alt={gift.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-500"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  unoptimized
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-stone-300">
@@ -52,7 +55,7 @@ export function GiftList({ gifts }: GiftListProps){
               <h3 className="font-bold text-stone-800 text-lg mb-1 group-hover:text-rose-600 transition-colors">
                 {gift.title}
               </h3>
-              
+
               <div className="mt-auto pt-4 flex items-center justify-between">
                 <div>
                   <p className="text-xs text-stone-500">Valor do presente</p>
