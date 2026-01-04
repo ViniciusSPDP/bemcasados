@@ -1,3 +1,5 @@
+'use client'
+
 import { useState } from 'react';
 import { EventStories, StoryItem } from '@/components/public/event-stories';
 import Image from 'next/image';
