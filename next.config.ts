@@ -29,6 +29,12 @@ const nextConfig: NextConfig = {
         port: "9002",
         pathname: "/bem-casados-bucket/**",
       },
+      {
+        protocol: "https",
+        hostname: process.env.S3_ENDPOINT || "localhost",
+        port: "9002",
+        pathname: "/bem-casados-bucket/**",
+      }
     ],
   },
 };
