@@ -1,5 +1,3 @@
-'use client';
-
 import { useState } from 'react';
 import { EventStories, StoryItem } from '@/components/public/event-stories';
 import Image from 'next/image';
@@ -22,7 +20,8 @@ export function PublicPageContent({ event, galleryItems }: PublicPageContentProp
             {/* Modal de Checkout (Renderizado condicionalmente) */}
             {selectedGift && (
                 <CheckoutModal 
-                    gift={selectedGift as any} // Cast necessário se os tipos divergirem levemente (Decimal vs Number)
+                    // CORREÇÃO AQUI: Removido o "as any". O tipo é compatível.
+                    gift={selectedGift} 
                     isOpen={!!selectedGift}
                     onClose={() => setSelectedGift(null)}
                 />
@@ -78,7 +77,6 @@ export function PublicPageContent({ event, galleryItems }: PublicPageContentProp
                                     
                                     <div className="flex-1">
                                         <h3 className="font-bold text-gray-800 text-lg line-clamp-2">{gift.title}</h3>
-                                        {/* Se quiser mostrar descrição: <p className="text-sm text-gray-500 mt-1 line-clamp-2">{gift.description}</p> */}
                                     </div>
 
                                     <div className="mt-4 pt-4 border-t border-gray-50">
@@ -86,7 +84,6 @@ export function PublicPageContent({ event, galleryItems }: PublicPageContentProp
                                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(gift.price))}
                                         </p>
                                         <button 
-                                            // AQUI ESTÁ A MÁGICA: Ao clicar, setamos o presente selecionado
                                             onClick={() => setSelectedGift(gift)}
                                             className="w-full bg-rose-600 hover:bg-rose-700 text-white py-3 rounded-xl font-bold transition shadow-md hover:shadow-lg active:scale-95"
                                         >
