@@ -38,6 +38,12 @@ export default async function AdminPage() {
     // 2. Busca de Dados do Evento
     const event = await prisma.event.findFirst({
         where: { userId: session.userId },
+        // ADICIONE ISTO:
+        include: { 
+            galleryItems: {
+                orderBy: { orderIndex: 'asc' }
+            } 
+        }
     });
 
     // Caso de borda: Usuário sem evento
