@@ -1,9 +1,10 @@
+// src/app/api/checkout/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod"
 import { prisma } from "@/lib/prisma";
-import { createAsaasCharge, PaymentMethod } from "@/services/asaas";
+import { createAsaasCharge } from "@/services/asaas"; // Importe apenas o createCharge
+import { PaymentMethod } from "@/lib/fees"; // Tipos vêm do lib/fees
 
-//Validação dos dados recebidos
 const CheckoutSchema = z.object({
     giftId: z.string().uuid(),
     guestName: z.string().min(3, "O nome muito curto"),
@@ -11,14 +12,19 @@ const CheckoutSchema = z.object({
     guestCPFCNPJ: z.string().min(11, "CPF/CNPJ inválido").transform(v => v.replace(/\D/g, "")),
     paymentMethod: z.enum(["CREDIT_CARD", "BOLETO", "PIX"]),
     message: z.string().max(500).optional(),
+    installments: z.coerce.number().int().min(1).max(12).default(1), // Limitado a 12 por padrão
 });
 
 export async function POST(req: Request) {
     try{
         const body = await req.json();
-        //Validação dos dados
         const data = CheckoutSchema.parse(body);
-        //Busca o presente no banco
+
+        // Validação extra: PIX não parcela
+        if (data.paymentMethod === "PIX" && data.installments > 1) {
+             return NextResponse.json({ error: "Pix não permite parcelamento." }, { status: 400 });
+        }
+
         const gift = await prisma.gift.findUnique({
             where: { id: data.giftId },
         });
@@ -27,8 +33,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Presente não encontrado." }, { status: 404 });
         }
 
-        //Cria a cobrança no Asaas
         const giftPrice = Number(gift.price);
+        
         const asaasResponse = await createAsaasCharge({
             customer: {
                 name: data.guestName,
@@ -39,9 +45,9 @@ export async function POST(req: Request) {
             method: data.paymentMethod as PaymentMethod,
             description: `Compra do presente: ${gift.title}`,
             externalReference: gift.id,
+            installmentCount: data.installments,
         });
 
-        //Salva o pedido no banco
         const transaction = await prisma.transaction.create({
             data: {
                 giftId: gift.id,
@@ -50,12 +56,10 @@ export async function POST(req: Request) {
                 guestCPF: data.guestCPFCNPJ,
                 message: data.message,
 
-                //Valores
                 amountOriginal: asaasResponse.financials.original,
                 amountCharged: asaasResponse.financials.total,
                 feeAmount: asaasResponse.financials.fee,
 
-                //Dados do Asaas
                 asaasId: asaasResponse.paymentId,
                 paymentLink: asaasResponse.invoiceUrl,
                 paymentMethod: data.paymentMethod,
@@ -71,25 +75,9 @@ export async function POST(req: Request) {
         });
     } catch (error) { 
         console.error("Erro no checkout:", error);
-
         if (error instanceof z.ZodError) {
-            return NextResponse.json(
-                { error: "Dados inválidos", details: error.issues },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "Dados inválidos", details: error.issues }, { status: 400 });
         }
-
-
-        if (error instanceof Error) {
-            return NextResponse.json(
-                { error: error.message },
-                { status: 500 }
-            );
-        }
-
-        return NextResponse.json(
-            { error: "Erro desconhecido ao processar o checkout." },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: "Erro interno ao processar pagamento." }, { status: 500 });
     }
 }

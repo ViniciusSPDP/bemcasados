@@ -1,7 +1,6 @@
-//src/services/asaas.ts
+// src/services/asaas.ts
 import axios from "axios";
-
-export type PaymentMethod = "CREDIT_CARD" | "BOLETO" | "PIX";
+import { calculateTotalWithFees, PaymentMethod } from "@/lib/fees"; 
 
 interface CustomerData {
   name: string;
@@ -15,8 +14,8 @@ interface CreateChargeParams {
   method: PaymentMethod;
   description: string;
   externalReference: string;
+  installmentCount?: number;
 }
-
 
 const api = axios.create({
   baseURL: process.env.ASAAS_URL,
@@ -26,41 +25,15 @@ const api = axios.create({
   },
 });
 
-//Calculo de taxas para garantir o valor liquido desejado
-export function calculateTotalWithFees(
-  originalValue: number,
-  method: PaymentMethod
-): number {
-  const fees = {
-    PIX: { percent: 0, fixed: 1.99 },
-    BOLETO: { percent: 0, fixed: 2.49 },
-    CREDIT_CARD: { percent: 0.0299, fixed: 0.49 },
-  };
-
-  const fee = fees[method];
-
-  // Fórmula: ValorFinal = (ValorOriginal + CustoFixo) / (1 - %Taxa)
-  // Exemplo: Quero receber R$ 100,00 no Cartão (2.99% + 0.49)
-  // (100 + 0.49) / (1 - 0.0299) = 100.49 / 0.9701 = R$ 103,58
-  const total = (originalValue + fee.fixed) / (1 - fee.percent);
-
-  return Math.round(total * 100) / 100; // Arredonda para 2 casas decimais
-}
-
-//Cria o cliente se não existir
 async function getOrCreateCustomer(data: CustomerData) {
   const cleanCpfCnpj = data.cpfCnpj.replace(/\D/g, "");
 
   try {
-    //Buca cliente pelo CPF/CNPJ
-    const { data: search } = await api.get(
-      `/customers?cpfCnpj=${cleanCpfCnpj}`
-    );
+    const { data: search } = await api.get(`/customers?cpfCnpj=${cleanCpfCnpj}`);
     if (search.data && search.data.length > 0) {
-      return search.data[0].id; //Retorna o ID do cliente existente
+      return search.data[0].id;
     }
 
-    //Cria um novo cliente
     const { data: newCustomer } = await api.post("/customers", {
       name: data.name,
       cpfCnpj: cleanCpfCnpj,
@@ -73,34 +46,51 @@ async function getOrCreateCustomer(data: CustomerData) {
   }
 }
 
-//Cria a cobrança no Asaas
 export async function createAsaasCharge({
   customer,
   value,
   method,
   description,
   externalReference,
+  installmentCount = 1
 }: CreateChargeParams) {
-  //Calcula o valor total com taxas
-  const finalValue = calculateTotalWithFees(value, method);
+  
+  // 1. Calcula o valor FINAL que será cobrado do convidado
+  const finalValue = calculateTotalWithFees(value, method, installmentCount);
   const calculatedFee = finalValue - value;
 
-  //Obtém ou cria o cliente no Asaas
   const asaasCustomerId = await getOrCreateCustomer(customer);
 
-  //Cria a cobrança
-  const chargePayload = {
+  // 2. Monta o payload conforme a doc (usando totalValue para parcelados)
+  const basePayload = {
     customer: asaasCustomerId,
     billingType: method,
-    value: finalValue,
-    dueDate: new Date().toISOString().split("T")[0], //Data atual no formato YYYY-MM-DD
+    dueDate: new Date().toISOString().split("T")[0],
     description,
     externalReference,
     postalService: false,
   };
 
+  let chargePayload;
+
+  // Se for parcelado, usamos installmentCount e totalValue
+  if (installmentCount > 1) {
+    chargePayload = {
+      ...basePayload,
+      installmentCount,
+      totalValue: finalValue, // O Asaas divide automaticamente nas parcelas
+    };
+  } else {
+    // Se for à vista
+    chargePayload = {
+      ...basePayload,
+      value: finalValue,
+    };
+  }
+
   try {
     const { data: charge } = await api.post("/lean/payments", chargePayload);
+    
     return {
       success: true,
       paymentId: charge.id,
@@ -110,20 +100,16 @@ export async function createAsaasCharge({
         original: value,
         total: finalValue,
         fee: calculatedFee,
+        installments: installmentCount
       },
     };
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      console.error(
-        "Erro ao criar cobrança no ASAAS:",
-        error.response?.data || error.message
-      );
-    } else if (error instanceof Error) {
-      console.error("Erro ao generico", error);
+        console.error("Erro Asaas:", error.response?.data || error.message);
     }
-    else{
-        console.error("Erro desconhecido:", error);
-    }
-    throw new Error("Erro ao criar cobrança no gateway de pagamento.");
+    throw new Error("Erro ao criar cobrança no gateway.");
   }
 }
+
+// Re-exporta para compatibilidade se necessário, mas o ideal é importar de @/lib/fees
+export { calculateTotalWithFees, type PaymentMethod };
