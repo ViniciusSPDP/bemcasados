@@ -18,7 +18,9 @@ import {
   AlertCircle, 
   LogOut, 
   Settings, 
-  LayoutDashboard 
+  LayoutDashboard,
+  ExternalLink,
+  Heart
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +40,6 @@ export default async function AdminPage() {
     // 2. Busca de Dados do Evento
     const event = await prisma.event.findFirst({
         where: { userId: session.userId },
-        // ADICIONE ISTO:
         include: { 
             galleryItems: {
                 orderBy: { orderIndex: 'asc' }
@@ -49,17 +50,21 @@ export default async function AdminPage() {
     // Caso de borda: Usuário sem evento
     if (!event) {
         return (
-            <div className="flex h-screen items-center justify-center p-6 flex-col gap-4">
-                 <div className="text-center space-y-4">
-                    <AlertCircle className="mx-auto h-12 w-12 text-yellow-500" />
-                    <h1 className="text-xl font-bold">Nenhum evento encontrado</h1>
-                    <p className="text-gray-500">Parece que você tem uma conta, mas não criou um evento.</p>
+            <div className="flex h-screen items-center justify-center p-6 flex-col gap-6 bg-gray-50">
+                 <div className="bg-white p-8 rounded-3xl shadow-lg text-center space-y-4 max-w-md border border-gray-100">
+                    <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto">
+                        <AlertCircle className="h-8 w-8 text-yellow-600" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-bold text-gray-900">Nenhum evento encontrado</h1>
+                        <p className="text-gray-500 mt-2">Parece que você tem uma conta, mas não criou um evento ainda.</p>
+                    </div>
+                    <form action={logoutAction} className="pt-4">
+                        <button className="w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl flex items-center justify-center gap-2 transition-colors">
+                            <LogOut size={18} /> Sair da conta
+                        </button>
+                    </form>
                 </div>
-                <form action={logoutAction}>
-                    <button className="text-rose-600 hover:text-rose-700 font-medium text-sm flex items-center gap-2">
-                        <LogOut size={16} /> Sair da conta
-                    </button>
-                </form>
             </div>
         )
     }
@@ -91,68 +96,89 @@ export default async function AdminPage() {
         : 0;
 
     return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-10">
-      <div className="max-w-6xl mx-auto space-y-6">
-        
-        {/* HEADER: Título + Botão de Logout + Link */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-white p-6 rounded-xl border border-gray-100 shadow-sm md:bg-transparent md:border-0 md:shadow-none md:p-0">
-            <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Olá, {event.coupleName}</h1>
-                <p className="text-sm md:text-base text-gray-500">
-                    Gerencie o casamento: <span className="font-semibold text-rose-600">{event.title}</span>
-                </p>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                 <div className="text-left md:text-right grow md:grow-0">
-                    <p className="text-xs text-gray-400">Link do site:</p>
-                    <a 
-                        href={`/${event.slug}`} 
-                        target="_blank" 
-                        className="text-sm font-medium text-rose-600 hover:text-rose-700 hover:underline break-all"
-                    >
-                        bemcasados.com/{event.slug}
-                    </a>
+    <div className="min-h-screen bg-gray-50/50 pb-20 font-sans">
+      {/* BACKGROUND DECORATIVO NO TOPO */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-30 backdrop-blur-md">
+          <div className="max-w-6xl mx-auto px-4 md:px-8 py-4">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                
+                {/* LADO ESQUERDO: SAUDAÇÃO */}
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-rose-100 rounded-xl flex items-center justify-center shrink-0">
+                        <Heart className="text-rose-600 w-5 h-5 md:w-6 md:h-6" fill="currentColor" />
+                    </div>
+                    <div>
+                        <h1 className="text-lg md:text-xl font-bold text-gray-900 leading-tight">
+                            Olá, {event.coupleName.split(' ')[0]}
+                        </h1>
+                        <p className="text-xs md:text-sm text-gray-500 flex items-center gap-1">
+                            <span className="w-2 h-2 bg-green-500 rounded-full inline-block animate-pulse"></span>
+                            Evento Ativo
+                        </p>
+                    </div>
                 </div>
                 
-                <form action={logoutAction}>
-                    <button 
-                        type="submit" 
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-100 rounded-lg hover:bg-red-100 transition"
+                {/* LADO DIREITO: AÇÕES */}
+                <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                     <a 
+                        href={`/${event.slug}`} 
+                        target="_blank" 
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-rose-600 bg-rose-50 border border-rose-100 rounded-lg hover:bg-rose-100 transition-colors"
                     >
-                        <LogOut size={16} /> 
-                        <span className="hidden md:inline">Sair</span>
-                    </button>
-                </form>
+                        <ExternalLink size={16} /> 
+                        <span className="hidden sm:inline">Ver Site</span>
+                    </a>
+                    
+                    <form action={logoutAction}>
+                        <button 
+                            type="submit" 
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Sair"
+                        >
+                            <LogOut size={18} />
+                        </button>
+                    </form>
+                </div>
             </div>
-        </div>
+          </div>
+      </div>
 
+      <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 space-y-8">
+        
         {/* NAVEGAÇÃO POR ABAS */}
         <Tabs defaultValue="dashboard" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 max-w-100 mb-6 mx-auto md:mx-0">
-                <TabsTrigger value="dashboard" className="flex items-center gap-2 data-[state=active]:text-rose-600">
-                    <LayoutDashboard size={16}/> Painel
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="flex items-center gap-2 data-[state=active]:text-rose-600">
-                    <Settings size={16}/> Personalizar Site
-                </TabsTrigger>
-            </TabsList>
+            <div className="flex justify-center md:justify-start mb-6">
+                <TabsList className="bg-white border border-gray-200 p-1 rounded-xl h-auto shadow-sm">
+                    <TabsTrigger 
+                        value="dashboard" 
+                        className="px-6 py-2.5 rounded-lg data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2 text-gray-600"
+                    >
+                        <LayoutDashboard size={18}/> Painel
+                    </TabsTrigger>
+                    <TabsTrigger 
+                        value="settings" 
+                        className="px-6 py-2.5 rounded-lg data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2 text-gray-600"
+                    >
+                        <Settings size={18}/> Personalizar
+                    </TabsTrigger>
+                </TabsList>
+            </div>
 
             {/* ABA 1: DASHBOARD (Financeiro e Presentes) */}
-            <TabsContent value="dashboard" className="space-y-8 animate-in fade-in duration-300">
+            <TabsContent value="dashboard" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                  
                  {/* KPIs Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                     <StatCard 
                         icon={<DollarSign size={24} />} 
-                        color="text-green-600 bg-green-100" 
-                        label="Arrecadado" 
+                        color="text-emerald-600 bg-emerald-100" 
+                        label="Total Arrecadado" 
                         value={new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(totalReceived._sum.amountOriginal || 0))} 
                     />
                     <StatCard 
                         icon={<Gift size={24} />} 
                         color="text-rose-600 bg-rose-100" 
-                        label="Presentes Vendidos" 
+                        label="Presentes Recebidos" 
                         value={totalGiftsSold.toString()} 
                     />
                     <StatCard 
@@ -163,59 +189,71 @@ export default async function AdminPage() {
                     />
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Coluna Esquerda: Formulário e Lista */}
-                    <div className="space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    
+                    {/* Coluna Esquerda: Formulário e Lista (Ocupa 7/12 no desktop) */}
+                    <div className="lg:col-span-7 space-y-8">
+                        {/* Componente de Adicionar Presente */}
                         <GiftForm />
 
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-lg font-bold text-gray-800">Presentes Cadastrados</h2>
-                                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
-                                    {gifts.length} itens
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                    <Gift className="text-rose-500" size={20}/>
+                                    Seus Presentes
+                                </h2>
+                                <span className="text-xs font-bold text-gray-500 bg-white border border-gray-200 px-3 py-1 rounded-full">
+                                    {gifts.length} cadastrados
                                 </span>
                             </div>
                              
                              {gifts.length === 0 ? (
-                                  <div className="text-center py-8 text-gray-400 bg-gray-50 rounded-lg border border-dashed">
-                                    <Gift className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                                    <p className="text-sm">Nenhum presente cadastrado.</p>
+                                  <div className="text-center py-12 px-6">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <Gift className="h-8 w-8 text-gray-300" />
+                                    </div>
+                                    <h3 className="text-gray-900 font-medium">Nenhum presente ainda</h3>
+                                    <p className="text-sm text-gray-500 mt-1">Cadastre opções para seus convidados escolherem.</p>
                                   </div>
                               ) : (
-                                <div className="space-y-3 max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+                                <div className="divide-y divide-gray-100 max-h-150 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
                                     {gifts.map((gift) => (
-                                    <div key={gift.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition bg-white">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 bg-gray-100 rounded-md overflow-hidden relative border border-gray-200 shrink-0">
-                                                {gift.imageUrl ? (
-                                                    <Image 
-                                                        src={gift.imageUrl} 
-                                                        alt={gift.title} 
-                                                        fill 
-                                                        className="object-cover" 
-                                                        sizes="48px" 
-                                                        unoptimized={isLocal} 
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-gray-300">
-                                                        <Gift size={16} />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-gray-800 text-sm line-clamp-1">{gift.title}</p>
-                                                <p className="text-xs text-gray-500 font-mono">
-                                                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(gift.price))}
-                                                </p>
-                                            </div>
+                                    <div key={gift.id} className="p-4 hover:bg-gray-50 transition-colors flex items-center gap-4 group">
+                                        {/* Imagem do Presente */}
+                                        <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-xl overflow-hidden relative border border-gray-100 shrink-0 shadow-sm">
+                                            {gift.imageUrl ? (
+                                                <Image 
+                                                    src={gift.imageUrl} 
+                                                    alt={gift.title} 
+                                                    fill 
+                                                    className="object-cover group-hover:scale-105 transition-transform duration-500" 
+                                                    sizes="80px" 
+                                                    unoptimized={isLocal} 
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                                    <Gift size={24} />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Info do Presente */}
+                                        <div className="flex-1 min-w-0 py-1">
+                                            <h3 className="font-semibold text-gray-900 text-sm md:text-base truncate pr-2">
+                                                {gift.title}
+                                            </h3>
+                                            <p className="text-rose-600 font-bold text-sm md:text-base mt-1">
+                                                {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(gift.price))}
+                                            </p>
                                         </div>
                                         
+                                        {/* Ações */}
                                         <form action={deleteGift.bind(null, gift.id)}>
                                             <button 
-                                                className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition"
+                                                className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-2.5 rounded-xl transition-all"
                                                 title="Excluir presente"
                                             >
-                                                <Trash2 size={16} />
+                                                <Trash2 size={18} />
                                             </button>
                                         </form>
                                     </div>
@@ -225,45 +263,58 @@ export default async function AdminPage() {
                         </div>
                     </div>
 
-                    {/* Coluna Direita: Extrato de Transações */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit sticky top-6">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4">Últimas Vendas</h2>
-                        
-                        {recentTransactions.length === 0 ? (
-                            <div className="text-center py-10 text-gray-400">
-                                <DollarSign className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                                <p className="text-sm">Nenhuma venda realizada ainda.</p>
-                                <p className="text-xs mt-1">Divulgue seu link!</p>
+                    {/* Coluna Direita: Extrato (Ocupa 5/12 no desktop) */}
+                    <div className="lg:col-span-5 space-y-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-24">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-lg font-bold text-gray-800">Últimas Vendas</h2>
+                                <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-md font-medium border border-green-100">
+                                    Extrato
+                                </span>
                             </div>
-                        ) : (
-                            <div className="divide-y divide-gray-100">
-                                {recentTransactions.map((t) => (
-                                <div key={t.id} className="py-4 first:pt-0 last:pb-0">
-                                    <div className="flex justify-between items-start mb-1">
-                                        <p className="font-bold text-gray-800 text-sm">{t.guestName || "Anônimo"}</p>
-                                        <span className="text-green-700 font-bold text-xs bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">
-                                            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(t.amountOriginal))}
-                                        </span>
+                            
+                            {recentTransactions.length === 0 ? (
+                                <div className="text-center py-10 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
+                                        <DollarSign className="h-5 w-5 text-gray-400" />
                                     </div>
-                                    <p className="text-xs text-rose-600 mb-1 font-medium flex items-center gap-1">
-                                        <Gift size={10} /> {t.gift.title}
-                                    </p>
-                                    {t.message && (
-                                        <div className="bg-gray-50 p-2 rounded text-xs text-gray-600 italic border border-gray-100 mt-2">
-                                            &quot;{t.message}&quot;
-                                        </div>
-                                    )}
+                                    <p className="text-sm text-gray-600 font-medium">Nenhuma venda realizada.</p>
+                                    <p className="text-xs text-gray-400 mt-1">Compartilhe seu link para começar!</p>
                                 </div>
-                                ))}
-                            </div>
-                        )}
+                            ) : (
+                                <div className="space-y-4">
+                                    {recentTransactions.map((t) => (
+                                    <div key={t.id} className="relative pl-4 border-l-2 border-rose-100 py-1 hover:border-rose-400 transition-colors">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <p className="font-bold text-gray-900 text-sm truncate max-w-[60%]">
+                                                {t.guestName || "Convidado Anônimo"}
+                                            </p>
+                                            <span className="text-emerald-600 font-bold text-sm bg-emerald-50 px-2 py-0.5 rounded-md">
+                                                {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(t.amountOriginal))}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+                                            Comprou: <span className="text-gray-700 font-medium">{t.gift.title}</span>
+                                        </p>
+                                        
+                                        {t.message && (
+                                            <div className="bg-rose-50/50 p-3 rounded-lg text-xs text-rose-800 italic relative">
+                                                <span className="absolute -top-2 left-2 text-rose-200 text-xl font-serif">“</span>
+                                                {t.message}
+                                            </div>
+                                        )}
+                                    </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </TabsContent>
 
             {/* ABA 2: CONFIGURAÇÕES (Stories, Fotos, Textos) */}
-            <TabsContent value="settings" className="animate-in fade-in duration-300">
-                <div className="max-w-4xl mx-auto">
+            <TabsContent value="settings" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="max-w-3xl mx-auto">
                     <EventSettingsForm event={event} />
                 </div>
             </TabsContent>
@@ -277,11 +328,13 @@ export default async function AdminPage() {
 // Componente Auxiliar para Cards de KPI
 function StatCard({ icon, color, label, value }: StatCardProps) {
     return (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4 transition hover:shadow-md">
-            <div className={`p-3 rounded-full ${color}`}>{icon}</div>
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5 transition hover:shadow-md hover:border-rose-100 group">
+            <div className={`p-4 rounded-2xl ${color} group-hover:scale-110 transition-transform duration-300`}>
+                {icon}
+            </div>
             <div>
-              <p className="text-sm text-gray-500 font-medium">{label}</p>
-              <h3 className="text-2xl font-bold text-gray-800 tracking-tight">{value}</h3>
+              <p className="text-xs md:text-sm text-gray-500 font-medium uppercase tracking-wide">{label}</p>
+              <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight mt-1">{value}</h3>
             </div>
         </div>
     )

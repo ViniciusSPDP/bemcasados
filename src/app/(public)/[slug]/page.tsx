@@ -3,26 +3,26 @@ import { notFound } from "next/navigation";
 import { PublicPageContent } from "./public-page-content";
 import { StoryItem } from "@/components/public/event-stories";
 import { Gift, Event as PrismaEvent, GalleryItem } from "@prisma/client";
+import { Metadata, ResolvingMetadata } from "next";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-// Definimos o tipo exato que o componente PublicPageContent vai receber.
-// Isso substitui o "any" e garante segurança de tipos.
+// Tipagens
 export interface SerializedGift extends Omit<Gift, "price"> {
   price: number;
 }
 
 export interface SerializedEvent extends PrismaEvent {
   gifts: SerializedGift[];
-  galleryItems?: GalleryItem[]; // Opcional aqui pois passamos separado, mas bom ter na tipagem
+  galleryItems?: GalleryItem[];
 }
 
-export default async function EventPage({ params }: PageProps) {
-  const { slug } = await params;
-
-  const event = await prisma.event.findUnique({
+// --- 1. FUNÇÃO DE BUSCA REUTILIZÁVEL ---
+// Centralizamos a query aqui. O Next.js faz deduplicação automática dessa requisição.
+async function getEventData(slug: string) {
+  return await prisma.event.findUnique({
     where: { slug },
     include: {
       galleryItems: {
@@ -34,6 +34,62 @@ export default async function EventPage({ params }: PageProps) {
       },
     },
   });
+}
+
+// --- 2. GERAÇÃO DE METADADOS (SEO) ---
+export async function generateMetadata(
+  { params }: PageProps,
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const { slug } = await params;
+  const event = await getEventData(slug);
+
+  if (!event) {
+    return {
+      title: "Evento não encontrado | BemCasados",
+    };
+  }
+
+  // Tenta pegar a imagem do primeiro story, senão usa a imagem padrão do site
+  const previousImages = (await parent).openGraph?.images || [];
+  const coverImage = event.galleryItems[0]?.imageUrl || "/og-image.jpg"; // Certifique-se de ter essa imagem em public/
+
+  const description = event.introSubtitle || `Lista de presentes e confirmação de presença para o casamento de ${event.coupleName}.`;
+
+  return {
+    title: `Casamento de ${event.coupleName}`,
+    description: description,
+    openGraph: {
+      title: `Casamento de ${event.coupleName}`,
+      description: description,
+      url: `https://bemcasados.com/${slug}`, // Ajuste para seu domínio real em produção
+      siteName: "BemCasados",
+      images: [
+        {
+          url: coverImage,
+          width: 1200,
+          height: 630,
+          alt: `Foto de ${event.coupleName}`,
+        },
+        ...previousImages,
+      ],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `Casamento de ${event.coupleName}`,
+      description: description,
+      images: [coverImage],
+    },
+  };
+}
+
+// --- 3. COMPONENTE DA PÁGINA ---
+export default async function EventPage({ params }: PageProps) {
+  const { slug } = await params;
+  
+  // Reutiliza a função de busca
+  const event = await getEventData(slug);
 
   if (!event) {
     return notFound();
@@ -68,8 +124,6 @@ export default async function EventPage({ params }: PageProps) {
         ];
 
   // 2. Serialização do Evento (Decimal -> Number)
-  // Removemos galleryItems do objeto event principal para não duplicar dados desnecessários
-  // e transformamos o preço dos presentes.
   const serializedEvent: SerializedEvent = {
     ...event,
     gifts: event.gifts.map((gift) => ({
