@@ -333,26 +333,41 @@ export async function getAsaasTransferHistory(subAccountApiKey: string) {
 export async function getAsaasOnboardingLink(subAccountApiKey: string): Promise<string> {
   const headers = { access_token: subAccountApiKey };
   try {
+    // 1. Verifica status completo primeiro
     const { data: status } = await api.get<AsaasStatusResponse>("/myAccount/status", { headers });
     
     if (status.general === "APPROVED") {
         throw new Error("Sua conta já está totalmente aprovada!");
     }
 
+    // 2. Busca os documentos pendentes (Caminho principal para subcontas)
+    // Este endpoint retorna a lista de documentos e seus respectivos onboardingUrl
     const { data: docs } = await api.get<AsaasDocumentsResponse>("/myAccount/documents", { headers });
     
+    // Procura por qualquer grupo de documento que já possua um link gerado
     const docWithLink = docs.data?.find((d) => d.onboardingUrl);
     
     if (docWithLink?.onboardingUrl) {
         return docWithLink.onboardingUrl;
     }
 
-    const { data: onboarding } = await api.get("/myAccount/onboarding", { headers });
-    if (onboarding.onboardingUrl) return onboarding.onboardingUrl;
+    // 3. Se não houver link nos documentos, tenta o onboarding genérico (Fallback)
+    try {
+      const { data: onboarding } = await api.get("/myAccount/onboarding", { headers });
+      if (onboarding.onboardingUrl) return onboarding.onboardingUrl;
+    } catch (e) {
+      console.error("Endpoint /onboarding não disponível:", e);
+    }
 
+    // 4. Se tudo falhar, tenta forçar a customização/geração do link
     const { data: custom } = await api.post("/onboarding/customize", {}, { headers });
     return custom.url;
+
   } catch (error: unknown) {
+    // Tratamento de erro detalhado para o 404 ou outros erros de API
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+       throw new Error("O link de verificação ainda não está pronto. Aguarde 15 segundos e tente novamente.");
+    }
     const errorMessage = error instanceof Error ? error.message : "Erro ao gerar link de verificação.";
     throw new Error(errorMessage);
   }
