@@ -118,7 +118,7 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pb-10">
       
-      <Card className="border-none sm:border shadow-none sm:shadow-sm">
+      <Card className="border-none sm:border shadow-none sm:shadow-sm overflow-hidden">
         <CardHeader className="px-4 sm:px-6">
             <CardTitle className="flex items-center gap-2 text-xl font-bold">
                 <ImageIcon className="w-5 h-5 text-rose-500"/>
@@ -135,15 +135,25 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
                     const imageUrl = item.type === 'kept' ? item.url : item.previewUrl;
                     return (
                     <div key={item.id} className="space-y-2 animate-in fade-in zoom-in duration-300">
-                        <div className="relative aspect-9/16 bg-gray-100 rounded-2xl overflow-hidden border shadow-sm group">
-                            {/* O segredo para o preview não corromper é o unoptimized */}
-                            <Image 
-                                src={imageUrl} 
-                                alt="Foto galeria" 
-                                fill 
-                                unoptimized={item.type === 'new'} 
-                                className="object-cover" 
-                            />
+                        <div className="relative aspect-[9/16] bg-gray-100 rounded-2xl overflow-hidden border shadow-sm group">
+                            {/* USAMOS <img> NATIVA PARA ARQUIVOS NOVOS (BLOB) 
+                                PARA EVITAR IMAGENS CORROMPIDAS NO PREVIEW
+                            */}
+                            {item.type === 'new' ? (
+                                <img 
+                                    src={imageUrl} 
+                                    alt="Preview" 
+                                    className="w-full h-full object-cover" 
+                                />
+                            ) : (
+                                <Image 
+                                    src={imageUrl} 
+                                    alt="Foto galeria" 
+                                    fill 
+                                    className="object-cover" 
+                                    unoptimized // Evita que o Next tente processar URLs externas no admin
+                                />
+                            )}
                             
                             {item.type === 'new' && (
                                 <div className="absolute top-2 left-2 pointer-events-none">
@@ -171,7 +181,7 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
                 )})}
 
                 {galleryItems.length < 10 && (
-                    <label className="flex flex-col items-center justify-center aspect-9/16 border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer hover:border-rose-500 hover:bg-rose-50 transition bg-gray-50/50 active:bg-rose-100">
+                    <label className="flex flex-col items-center justify-center aspect-[9/16] border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-rose-500 hover:bg-rose-50 transition bg-gray-50/50 active:bg-rose-100 min-h-[200px]">
                         <Upload className="w-8 h-8 text-gray-400 mb-2" />
                         <span className="text-xs text-gray-500 font-bold text-center px-2">Adicionar Foto</span>
                         <input 
@@ -188,11 +198,11 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6 border-t border-gray-50">
                 <div className="space-y-1.5">
                     <Label htmlFor="introTitle" className="text-xs font-bold text-gray-500 uppercase">Título da Entrada</Label>
-                    <Input name="introTitle" defaultValue={event.introTitle} className="h-11 rounded-xl" />
+                    <Input name="introTitle" id="introTitle" defaultValue={event.introTitle} className="h-11 rounded-xl" />
                 </div>
                 <div className="space-y-1.5">
                     <Label htmlFor="introSubtitle" className="text-xs font-bold text-gray-500 uppercase">Subtítulo</Label>
-                    <Input name="introSubtitle" defaultValue={event.introSubtitle} className="h-11 rounded-xl" />
+                    <Input name="introSubtitle" id="introSubtitle" defaultValue={event.introSubtitle} className="h-11 rounded-xl" />
                 </div>
             </div>
         </CardContent>
@@ -208,11 +218,11 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
         <CardContent className="space-y-6 px-4 sm:px-6">
             <div className="space-y-1.5">
                 <Label htmlFor="videoUrl" className="text-xs font-bold text-gray-500 uppercase">Link do YouTube (Música)</Label>
-                <Input name="videoUrl" defaultValue={event.videoUrl || ""} placeholder="https://www.youtube.com/watch?v=..." className="h-11 rounded-xl" />
+                <Input name="videoUrl" id="videoUrl" defaultValue={event.videoUrl || ""} placeholder="https://www.youtube.com/watch?v=..." className="h-11 rounded-xl" />
             </div>
             <div className="space-y-1.5">
                 <Label htmlFor="welcomeMessage" className="text-xs font-bold text-gray-500 uppercase">Mensagem aos Convidados</Label>
-                <Textarea name="welcomeMessage" defaultValue={event.welcomeMessage || ""} placeholder="Escreva algo carinhoso..." className="min-h-30 rounded-2xl" />
+                <Textarea name="welcomeMessage" id="welcomeMessage" defaultValue={event.welcomeMessage || ""} placeholder="Escreva algo carinhoso..." className="min-h-[120px] rounded-2xl" />
             </div>
         </CardContent>
       </Card>

@@ -8,69 +8,94 @@ import { revalidatePath } from "next/cache";
 import { isAsaasAccountApproved } from "@/services/asaas";
 
 export async function createGift(formData: FormData) {
+    console.log("=== DEBUG: INICIANDO CRIAÇÃO DE PRESENTE ===");
     const session = await verifySession();
 
-    // 1. Buscar o evento para obter a API Key do Asaas
+    // 1. Buscar o evento
     const event = await prisma.event.findFirst({
         where: { userId: session.userId }
     });
 
     if (!event) {
+        console.error("DEBUG: Evento não encontrado para o usuário", session.userId);
         throw new Error("Evento não encontrado");
     }
 
-    // 2. Trava de Segurança: Verificar aprovação no Asaas
-    // Se não tiver API Key ou não estiver aprovado, bloqueia a criação
+    // 2. Trava de Segurança
     if (!event.asaasApiKey) {
         throw new Error("Você precisa configurar sua carteira antes de criar presentes.");
     }
 
     const isApproved = await isAsaasAccountApproved(event.asaasApiKey);
-
     if (!isApproved) {
-        throw new Error("Criação Bloqueada: Sua conta no Asaas ainda não foi aprovada. Por favor, complete a validação na aba 'Conta e Saques'.");
+        throw new Error("Criação Bloqueada: Sua conta no Asaas ainda não foi aprovada.");
     }
 
-    // 3. Processamento dos dados do formulário
+    // 3. Processamento dos dados
     const title = formData.get("title") as string;
-    const price = parseFloat(formData.get("price") as string);
+    const priceStr = formData.get("price") as string;
+    const price = parseFloat(priceStr.replace(',', '.'));
     const category = formData.get("category") as string;
-    
-    // O checkbox envia "on" se marcado, ou null se desmarcado.
-    const isExclusive = formData.get("isExclusive") === "on";
+    const isExclusive = formData.has("isExclusive");
 
-    const imageFile = formData.get("image") as File;
+    console.log("DEBUG: Dados recebidos - Título:", title, "| Preço:", price);
+
+    // 4. Tratamento da Imagem com Debug
+    const imageFile = formData.get("image") as File | null;
     let imageUrl = "";
 
-    // 4. Upload de Imagem (apenas se a conta estiver ok)
-    if (imageFile && imageFile.size > 0) {
+    console.log("DEBUG: imageFile capturado:", {
+        nome: imageFile?.name,
+        tamanho: imageFile?.size,
+        tipo: imageFile?.type
+    });
+
+    if (imageFile && imageFile.size > 0 && imageFile.name !== 'undefined') {
         try {
+            console.log("DEBUG: Iniciando chamada para uploadFileToS3...");
             imageUrl = await uploadFileToS3(imageFile);
+            console.log("DEBUG: URL retornada pelo S3:", imageUrl);
+            
+            if (!imageUrl) {
+                console.warn("DEBUG: uploadFileToS3 retornou vazio, usando placeholder.");
+                imageUrl = `https://placehold.co/600x400?text=${encodeURIComponent(title)}`;
+            }
         } catch (error) {
-            console.error("Erro ao fazer upload da imagem para o S3:", error);
-            throw new Error("Erro ao fazer upload da imagem");
+            console.error("DEBUG: Erro Crítico durante o upload no S3:", error);
+            imageUrl = `https://placehold.co/600x400?text=${encodeURIComponent(title)}`;
         }
     } else {
+        console.warn("DEBUG: Nenhum arquivo de imagem válido detectado no FormData. Usando placeholder.");
         imageUrl = `https://placehold.co/600x400?text=${encodeURIComponent(title)}`;
     }
 
     // 5. Criação no Banco de Dados
-    await prisma.gift.create({
-        data: {
-            title,
-            price,
-            imageUrl,
-            category,
-            isExclusive,
-            eventId: event.id,
-            available: true,
-        },
-    });
+    try {
+        console.log("DEBUG: Gravando no Prisma com URL:", imageUrl);
+        const newGift = await prisma.gift.create({
+            data: {
+                title,
+                price,
+                imageUrl,
+                category,
+                isExclusive,
+                eventId: event.id,
+                available: true,
+            },
+        });
+        console.log("DEBUG: Presente criado com sucesso no banco ID:", newGift.id);
+    } catch (dbError) {
+        console.error("DEBUG: Erro ao salvar no Prisma:", dbError);
+        throw new Error("Erro ao salvar o presente no banco de dados.");
+    }
 
     // 6. Revalidação de Cache
+    console.log("DEBUG: Revalidando caminhos...");
     revalidatePath("/admin");
     revalidatePath(`/${event.slug}`);
+    revalidatePath(`/${event.slug}/presentes`);
     
+    console.log("=== DEBUG: FIM DO PROCESSO ===");
     return { success: true };
 }
 
@@ -88,6 +113,8 @@ export async function deleteGift(id: string) {
         });
         revalidatePath("/admin");
         revalidatePath(`/${gift.event.slug}`);
+        revalidatePath(`/${gift.event.slug}/presentes`);
+        return;
     } else {
         throw new Error("Não autorizado.");
     }

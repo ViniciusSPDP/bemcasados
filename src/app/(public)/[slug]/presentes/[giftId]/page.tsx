@@ -50,7 +50,8 @@ export default async function GiftPage({ params }: { params: Promise<{ slug: str
                                 <Image 
                                     src={gift.imageUrl} 
                                     alt={gift.title} 
-                                    fill 
+                                    fill
+                                    unoptimized 
                                     className={`object-cover transition-transform duration-1000 group-hover:scale-105 ${isSoldOut ? 'grayscale opacity-50' : ''}`}
                                     priority 
                                 />
