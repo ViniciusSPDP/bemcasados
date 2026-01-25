@@ -87,7 +87,7 @@ export default async function GiftsPage({ params }: { params: Promise<{ slug: st
                             const isSoldOut = !gift.available && gift.isExclusive;
                             return (
                                 <Link 
-                                    href={`/${slug}/presentes   /${gift.id}`} 
+                                    href={`/${slug}/presentes/${gift.id}`} 
                                     key={gift.id}
                                     className="group flex flex-col bg-white rounded-[2.5rem] border border-gray-100 p-3 md:p-5 transition-all hover:shadow-[0_20px_50px_rgba(225,29,72,0.1)] hover:-translate-y-2"
                                 >
