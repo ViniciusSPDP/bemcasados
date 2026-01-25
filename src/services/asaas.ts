@@ -41,18 +41,7 @@ interface AsaasStatusResponse {
   general: string;
 }
 
-interface AsaasDocument {
-  id: string;
-  status: string;
-  type: string;
-  title: string;
-  description: string;
-  onboardingUrl?: string;
-}
-
-interface AsaasDocumentsResponse {
-  data: AsaasDocument[];
-}
+// Interfaces removidas (AsaasDocument) pois não buscaremos links White Label
 
 // --- TIPAGENS PARA CARTÃO DE CRÉDITO ---
 
@@ -248,7 +237,7 @@ export async function createAsaasCharge({
   }
 }
 
-// --- UTILITÁRIOS WHITE LABEL (PIX/BOLETO) ---
+// --- UTILITÁRIOS (PIX/BOLETO) ---
 
 export async function getPixQrCode(paymentId: string, subAccountApiKey: string) {
   try {
@@ -327,7 +316,7 @@ export async function getAsaasTransferHistory(subAccountApiKey: string) {
   }
 }
 
-// --- DOCUMENTAÇÃO E KYC ---
+// --- DOCUMENTAÇÃO E KYC (MODO PADRÃO) ---
 
 export async function getAsaasOnboardingLink(subAccountApiKey: string): Promise<string> {
   const headers = { access_token: subAccountApiKey };
@@ -338,22 +327,11 @@ export async function getAsaasOnboardingLink(subAccountApiKey: string): Promise<
         throw new Error("Sua conta já está totalmente aprovada!");
     }
 
-    // Procura links de onboarding nos documentos pendentes conforme doc White Label
-    const { data: docs } = await api.get<AsaasDocumentsResponse>("/myAccount/documents", { headers });
-    const docWithLink = docs.data?.find((d) => d.onboardingUrl);
-    
-    if (docWithLink?.onboardingUrl) {
-        return docWithLink.onboardingUrl;
-    }
-
-    // Se a API retornar 200 mas a lista de documentos estiver vazia ou sem links
-    throw new Error("O link de verificação ainda não foi gerado pelo Asaas. Aguarde 15 segundos.");
+    // No modo padrão, o usuário deve usar o e-mail de boas-vindas enviado pelo Asaas
+    throw new Error("Acesse o e-mail enviado pelo Asaas para definir sua senha e enviar seus documentos pelo painel oficial.");
 
   } catch (error: unknown) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-       throw new Error("Os serviços de verificação estão sendo preparados. Aguarde 15 segundos.");
-    }
-    const errorMessage = error instanceof Error ? error.message : "Erro ao gerar link de verificação.";
+    const errorMessage = error instanceof Error ? error.message : "Erro ao verificar status da conta.";
     throw new Error(errorMessage);
   }
 }
@@ -363,7 +341,7 @@ export async function isAsaasAccountApproved(subAccountApiKey: string): Promise<
     const { data } = await api.get<AsaasStatusResponse>("/myAccount/status", {
       headers: { access_token: subAccountApiKey }
     });
-    // O PIX só funciona com general APPROVED
+    // O PIX e saques só funcionam quando 'general' é 'APPROVED'
     return data.general === "APPROVED";
   } catch {
     return false;
