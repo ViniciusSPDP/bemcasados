@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-const isLocal = process.env.NODE_ENV === 'development';
+//const isLocal = process.env.NODE_ENV === 'development';
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -225,7 +225,7 @@ export default async function AdminPage() {
                       gifts.map((gift) => (
                         <div key={gift.id} className="p-4 hover:bg-gray-50 flex items-center gap-3 sm:gap-4 transition-colors">
                           <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-lg overflow-hidden relative shrink-0 border border-gray-50">
-                            {gift.imageUrl && <Image src={gift.imageUrl} alt="" fill className="object-cover" unoptimized={isLocal} />}
+                            {gift.imageUrl && <Image src={gift.imageUrl} alt="" fill className="object-cover" unoptimized />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-bold text-gray-900 truncate text-xs sm:text-sm">{gift.title}</h3>
