@@ -11,6 +11,7 @@ interface ActionState {
     success: boolean;
     message: string;
     url?: string;
+    fields?: Record<string, string | number>; // Adicionado para persistência de dados
 }
 
 export async function updateEventSettings(formData: FormData) {
@@ -114,21 +115,32 @@ export async function setupAsaasAction(
         return { success: false, message: "Evento ou usuário não encontrado" };
     }
 
-    try {
-        const rawData = {
-            name: event.coupleName,
-            email: formData.get("asaasEmail") as string,
-            cpfCnpj: formData.get("cpfCnpj") as string,
-            birthDate: formData.get("birthDate") as string,
-            mobilePhone: formData.get("mobilePhone") as string,
-            incomeValue: Number(formData.get("incomeValue")),
-            address: formData.get("address") as string,
-            addressNumber: formData.get("addressNumber") as string,
-            province: formData.get("province") as string,
-            postalCode: formData.get("postalCode") as string,
-        };
+    // Captura os dados brutos para retornar em caso de erro
+    const rawData = {
+        asaasEmail: formData.get("asaasEmail") as string,
+        cpfCnpj: formData.get("cpfCnpj") as string,
+        birthDate: formData.get("birthDate") as string,
+        mobilePhone: formData.get("mobilePhone") as string,
+        incomeValue: formData.get("incomeValue") as string, // Mantemos string para o form
+        address: formData.get("address") as string,
+        addressNumber: formData.get("addressNumber") as string,
+        province: formData.get("province") as string,
+        postalCode: formData.get("postalCode") as string,
+    };
 
-        const asaasAccount = await createAsaasSubAccount(rawData);
+    try {
+        const asaasAccount = await createAsaasSubAccount({
+            name: event.coupleName,
+            email: rawData.asaasEmail,
+            cpfCnpj: rawData.cpfCnpj,
+            birthDate: rawData.birthDate,
+            mobilePhone: rawData.mobilePhone,
+            incomeValue: Number(rawData.incomeValue),
+            address: rawData.address,
+            addressNumber: rawData.addressNumber,
+            province: rawData.province,
+            postalCode: rawData.postalCode,
+        });
 
         await prisma.event.update({
             where: { id: event.id },
@@ -142,7 +154,11 @@ export async function setupAsaasAction(
         return { success: true, message: "Conta configurada com sucesso!" };
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao configurar conta";
-        return { success: false, message: errorMessage };
+        return { 
+            success: false, 
+            message: errorMessage,
+            fields: rawData // Retorna os campos preenchidos para o form
+        };
     }
 }
 
@@ -178,7 +194,6 @@ export async function saveBankSettingsAction(
     const session = await verifySession();
     const pixKey = formData.get("pixKey") as string;
 
-    // 1. Buscamos o evento primeiro para ter o ID único
     const event = await prisma.event.findFirst({
         where: { userId: session.userId }
     });
@@ -188,7 +203,6 @@ export async function saveBankSettingsAction(
     }
 
     try {
-        // 2. Atualizamos usando o ID único do evento
         await prisma.event.update({
             where: { id: event.id },
             data: { pixKey }
@@ -212,14 +226,12 @@ export async function requestWithdrawalAction(): Promise<ActionState> {
     }
 
     try {
-        // 1. Pegar o saldo disponível real no momento
         const balance = await getAsaasBalance(event.asaasApiKey);
 
-        if (balance <= 5) { // Considerando a taxa fixa do Asaas de R$ 5,00
+        if (balance <= 5) {
             return { success: false, message: "Saldo insuficiente para cobrir as taxas de saque." };
         }
 
-        // 2. Solicitar transferência
         const result = await transferAsaasBalance(event.asaasApiKey, balance, event.pixKey);
         
         if (result.success) {

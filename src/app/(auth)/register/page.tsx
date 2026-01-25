@@ -6,14 +6,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useActionState } from "react"
-// 1. IMPORTANTE: Importar "Variants" aqui para corrigir o erro de tipo
 import { motion, Variants } from "framer-motion" 
 import { User, Mail, Lock, Heart, Calendar, Link as LinkIcon, Sparkles } from "lucide-react" 
 
 export default function RegisterPage() {
+    // O state agora contém 'fields' que são os valores digitados anteriormente
     const [state, action, isPending] = useActionState(signup, undefined)
 
-    // 2. CORREÇÃO: Tipar explicitamente como "Variants"
     const containerVariants: Variants = {
         hidden: { opacity: 0 },
         visible: { 
@@ -25,7 +24,6 @@ export default function RegisterPage() {
         }
     };
 
-    // 3. CORREÇÃO: Tipar explicitamente como "Variants"
     const itemVariants: Variants = {
         hidden: { y: 20, opacity: 0 },
         visible: { 
@@ -38,7 +36,6 @@ export default function RegisterPage() {
     return (
         <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-rose-100 via-gray-50 to-rose-50 p-4 font-sans">
             
-            {/* Elementos decorativos de fundo */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-rose-300/20 rounded-full blur-3xl" />
                 <div className="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-orange-200/20 rounded-full blur-3xl" />
@@ -70,7 +67,6 @@ export default function RegisterPage() {
                         animate="visible"
                         className="space-y-5"
                     >
-                        {/* --- BLOCO 1: DADOS DO CASAL --- */}
                         <motion.div variants={itemVariants}>
                             <Label htmlFor="name" className="text-gray-700 font-medium ml-1">Nome do Casal</Label>
                             <div className="relative mt-1.5">
@@ -79,6 +75,8 @@ export default function RegisterPage() {
                                     id="name" 
                                     name="name" 
                                     placeholder="Ex: Ana e Pedro" 
+                                    // Adicionado defaultValue para manter o valor
+                                    defaultValue={state?.fields?.name}
                                     className="pl-10 h-12 rounded-xl border-gray-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 bg-gray-50/50 hover:bg-white transition-colors"
                                 />
                             </div>
@@ -94,6 +92,8 @@ export default function RegisterPage() {
                                     name="email" 
                                     type="email" 
                                     placeholder="email@exemplo.com" 
+                                    // Adicionado defaultValue para manter o valor
+                                    defaultValue={state?.fields?.email}
                                     className="pl-10 h-12 rounded-xl border-gray-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 bg-gray-50/50 hover:bg-white transition-colors"
                                 />
                             </div>
@@ -123,7 +123,6 @@ export default function RegisterPage() {
                             )}
                         </motion.div>
 
-                        {/* --- DIVISOR ESTILIZADO --- */}
                         <motion.div variants={itemVariants} className="relative flex py-4 items-center">
                             <div className="grow border-t border-gray-200"></div>
                             <span className="shrink-0 mx-4 text-rose-400 text-[10px] font-bold tracking-widest uppercase flex items-center gap-1">
@@ -132,7 +131,6 @@ export default function RegisterPage() {
                             <div className="grow border-t border-gray-200"></div>
                         </motion.div>
 
-                        {/* --- BLOCO 2: DADOS DO EVENTO --- */}
                         <motion.div variants={itemVariants}>
                             <Label htmlFor="eventName" className="text-gray-700 font-medium ml-1">Nome do Evento</Label>
                             <div className="relative mt-1.5">
@@ -141,6 +139,8 @@ export default function RegisterPage() {
                                     id="eventName" 
                                     name="eventName" 
                                     placeholder="Casamento Ana e Pedro" 
+                                    // Adicionado defaultValue para manter o valor
+                                    defaultValue={state?.fields?.eventName}
                                     className="pl-10 h-12 rounded-xl border-gray-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 bg-gray-50/50 hover:bg-white transition-colors"
                                 />
                             </div>
@@ -157,6 +157,8 @@ export default function RegisterPage() {
                                     id="slug" 
                                     name="slug" 
                                     placeholder="ana-e-pedro" 
+                                    // Adicionado defaultValue para manter o valor
+                                    defaultValue={state?.fields?.slug}
                                     className="rounded-l-none rounded-r-xl h-12 border-gray-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 bg-white"
                                 />
                             </div>
@@ -171,13 +173,14 @@ export default function RegisterPage() {
                                     id="eventDate" 
                                     name="eventDate" 
                                     type="date" 
+                                    // Adicionado defaultValue para manter o valor
+                                    defaultValue={state?.fields?.eventDate}
                                     className="pl-10 h-12 rounded-xl border-gray-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 bg-gray-50/50 hover:bg-white transition-colors"
                                 />
                             </div>
                             {state?.error?.eventDate && <p className="text-xs text-rose-500 mt-1 ml-1 font-medium">{state.error.eventDate}</p>}
                         </motion.div>
 
-                        {/* --- MENSAGENS GERAIS --- */}
                         {state?.message && (
                             <motion.div variants={itemVariants} className="p-3 bg-rose-50 border border-rose-100 rounded-lg flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
@@ -185,7 +188,6 @@ export default function RegisterPage() {
                             </motion.div>
                         )}
 
-                        {/* --- BOTÃO DE AÇÃO --- */}
                         <motion.div variants={itemVariants} className="pt-2">
                             <Button 
                                 disabled={isPending} 
