@@ -34,20 +34,22 @@ interface CustomerData {
   email: string;
 }
 
+// Interface para o status detalhado da conta conforme documentação
 interface AsaasStatusResponse {
   commercialInfo: string;
   bankAccountInfo: string;
   documentation: string;
-  general: string;
+  general: string; // APPROVED é o status final necessário para PIX
 }
 
+// Interface para os documentos para evitar o erro de 'any' do ESLint
 interface AsaasDocument {
   id: string;
   status: string;
   type: string;
   title: string;
   description: string;
-  onboardingUrl?: string;
+  onboardingUrl?: string; // Link White Label cadastro.io
 }
 
 interface AsaasDocumentsResponse {
@@ -147,7 +149,7 @@ export async function createAsaasSubAccount(
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
       const asaasErrors = error.response?.data?.errors;
-      // Se o Asaas retornou um erro estruturado, lançamos a descrição dele
+      // Agora exibe a descrição real do erro (ex: CPF em uso)
       if (asaasErrors && asaasErrors.length > 0) {
         throw new Error(asaasErrors[0].description);
       }
@@ -328,7 +330,7 @@ export async function getAsaasTransferHistory(subAccountApiKey: string) {
   }
 }
 
-// --- DOCUMENTAÇÃO E KYC ---
+// --- DOCUMENTAÇÃO E KYC (WHITE LABEL FLUX) ---
 
 export async function getAsaasOnboardingLink(subAccountApiKey: string): Promise<string> {
   const headers = { access_token: subAccountApiKey };
@@ -340,33 +342,32 @@ export async function getAsaasOnboardingLink(subAccountApiKey: string): Promise<
         throw new Error("Sua conta já está totalmente aprovada!");
     }
 
-    // 2. Busca os documentos pendentes (Caminho principal para subcontas)
-    // Este endpoint retorna a lista de documentos e seus respectivos onboardingUrl
+    // 2. Busca os documentos pendentes (Fluxo White Label obrigatório)
     const { data: docs } = await api.get<AsaasDocumentsResponse>("/myAccount/documents", { headers });
     
-    // Procura por qualquer grupo de documento que já possua um link gerado
+    // Procura por qualquer grupo de documento que possua um link gerado (cadastro.io)
     const docWithLink = docs.data?.find((d) => d.onboardingUrl);
     
     if (docWithLink?.onboardingUrl) {
         return docWithLink.onboardingUrl;
     }
 
-    // 3. Se não houver link nos documentos, tenta o onboarding genérico (Fallback)
+    // 3. Fallback para endpoints de onboarding se a lista de documentos ainda não tiver o link
     try {
       const { data: onboarding } = await api.get("/myAccount/onboarding", { headers });
       if (onboarding.onboardingUrl) return onboarding.onboardingUrl;
-    } catch (e) {
-      console.error("Endpoint /onboarding não disponível:", e);
+    } catch  {
+      console.warn("Endpoint /onboarding 404 - Seguindo fluxo de documentos conforme documentação.");
     }
 
-    // 4. Se tudo falhar, tenta forçar a customização/geração do link
+    // 4. Se tudo falhar, tenta forçar a customização conforme sua versão anterior
     const { data: custom } = await api.post("/onboarding/customize", {}, { headers });
     return custom.url;
 
   } catch (error: unknown) {
-    // Tratamento de erro detalhado para o 404 ou outros erros de API
+    // Tratamento de timeout de 15s recomendado pela documentação
     if (axios.isAxiosError(error) && error.response?.status === 404) {
-       throw new Error("O link de verificação ainda não está pronto. Aguarde 15 segundos e tente novamente.");
+       throw new Error("Os serviços de verificação estão sendo preparados. Aguarde 15 segundos e tente novamente.");
     }
     const errorMessage = error instanceof Error ? error.message : "Erro ao gerar link de verificação.";
     throw new Error(errorMessage);
@@ -375,10 +376,12 @@ export async function getAsaasOnboardingLink(subAccountApiKey: string): Promise<
 
 export async function isAsaasAccountApproved(subAccountApiKey: string): Promise<boolean> {
   try {
+    // Consulta o status completo para garantir que o PIX esteja liberado
     const { data } = await api.get<AsaasStatusResponse>("/myAccount/status", {
       headers: { access_token: subAccountApiKey }
     });
     
+    // A conta só está aprovada quando o status geral é APPROVED
     return data.general === "APPROVED";
   } catch {
     return false;
