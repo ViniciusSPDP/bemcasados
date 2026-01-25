@@ -34,9 +34,10 @@ export function GiftForm({ isApproved }: GiftFormProps) {
   function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error("Imagem muito grande! Máximo 2MB.");
-        e.target.value = "";
+      // Aumentamos o limite para 5MB pois fotos de celulares modernos são grandes
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Imagem muito grande! Máximo 5MB.");
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
       const reader = new FileReader();
@@ -55,21 +56,21 @@ export function GiftForm({ isApproved }: GiftFormProps) {
       return;
     }
 
+    // No celular, garantimos que o foco saia dos inputs para salvar os dados
+    if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+    }
+
     setIsUploading(true);
 
     const form = e.currentTarget;
     const formData = new FormData(form);
 
-    // DEBUG CLIENTE para conferência
+    // Validação extra para celular
     const fileInFormData = formData.get("image") as File;
-    /*console.log("DEBUG CLIENTE: Verificando FormData antes de enviar:", {
-        nome: fileInFormData?.name,
-        tamanho: fileInFormData?.size,
-        tipo: fileInFormData?.type
-    });*/
-
+    
     if (!fileInFormData || fileInFormData.size === 0) {
-        toast.error("Por favor, selecione uma imagem válida.");
+        toast.error("A imagem não foi detectada. Tente selecionar novamente.");
         setIsUploading(false);
         return;
     }
@@ -79,6 +80,7 @@ export function GiftForm({ isApproved }: GiftFormProps) {
       if (result.success) {
         formRef.current?.reset();
         setImagePreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         toast.success("Presente criado com sucesso!");
         router.refresh();
       }
@@ -132,14 +134,14 @@ export function GiftForm({ isApproved }: GiftFormProps) {
             </Label>
             
             <div className="relative w-full h-40 sm:h-48 group">
-              {/* IMPORTANTE: O input fica SEMPRE aqui, garantindo que o FormData o capture */}
+              {/* O input precisa existir fora de condicionais para não se perder no mobile */}
               <input 
                 ref={fileInputRef}
-                id="gift-image-input"
+                id="gift-image-input-mobile"
                 type="file" 
                 name="image" 
                 className="hidden" 
-                accept="image/*" 
+                accept="image/*"
                 onChange={handleImageChange}
               />
 
@@ -159,7 +161,7 @@ export function GiftForm({ isApproved }: GiftFormProps) {
                 </div>
               ) : (
                 <label 
-                  htmlFor="gift-image-input"
+                  htmlFor="gift-image-input-mobile"
                   className="flex flex-col items-center justify-center w-full h-full border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer hover:bg-gray-50 hover:border-rose-300 transition-all active:bg-gray-100"
                 >
                   <div className="flex flex-col items-center justify-center p-4">
@@ -181,6 +183,7 @@ export function GiftForm({ isApproved }: GiftFormProps) {
               <Input
                 name="title"
                 required
+                inputMode="text"
                 placeholder="Ex: Jantar Romântico"
                 className="h-12 rounded-xl border-gray-100 bg-gray-50/30 focus:bg-white transition-all"
               />
@@ -194,6 +197,7 @@ export function GiftForm({ isApproved }: GiftFormProps) {
                 name="price"
                 type="number"
                 step="0.01"
+                inputMode="decimal"
                 required
                 placeholder="0,00"
                 className="h-12 rounded-xl border-gray-100 bg-gray-50/30 focus:bg-white transition-all"
@@ -206,17 +210,15 @@ export function GiftForm({ isApproved }: GiftFormProps) {
               <Label className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1">
                 <Layers size={12} /> Categoria
               </Label>
-              <div className="relative">
-                <select
-                  name="category"
-                  className="flex h-12 w-full rounded-xl border border-gray-100 bg-gray-50/30 px-3 py-2 text-xs sm:text-sm focus:outline-none appearance-none cursor-pointer"
-                >
-                  <option value="Cozinha">🏠 Casa / Cozinha</option>
-                  <option value="Viagem">✈️ Viagem / Lua de Mel</option>
-                  <option value="Lazer">🥂 Lazer / Experiência</option>
-                  <option value="Outros">🎁 Outros</option>
-                </select>
-              </div>
+              <select
+                name="category"
+                className="flex h-12 w-full rounded-xl border border-gray-100 bg-gray-50/30 px-3 py-2 text-xs sm:text-sm focus:outline-none appearance-none cursor-pointer"
+              >
+                <option value="Cozinha">🏠 Casa / Cozinha</option>
+                <option value="Viagem">✈️ Viagem / Lua de Mel</option>
+                <option value="Lazer">🥂 Lazer / Experiência</option>
+                <option value="Outros">🎁 Outros</option>
+              </select>
             </div>
 
             <div className="flex items-center justify-between p-3 sm:p-4 bg-rose-50/30 rounded-xl border border-rose-100/50 h-12">
@@ -228,7 +230,7 @@ export function GiftForm({ isApproved }: GiftFormProps) {
                   id="isExclusive"
                   name="isExclusive"
                   defaultChecked={true}
-                  className="w-5 h-5 accent-rose-600"
+                  className="w-6 h-6 rounded-md accent-rose-600 border-rose-200"
               />
             </div>
           </div>
