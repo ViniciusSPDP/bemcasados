@@ -11,7 +11,8 @@ import {
   DollarSign, 
   Layers, 
   AlertCircle,
-  Lock
+  Lock,
+  Check
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,12 @@ export function GiftForm({ isApproved }: GiftFormProps) {
   function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
+      // Validação de tamanho no cliente (2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("Imagem muito grande! Máximo 2MB.");
+        e.target.value = "";
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -38,84 +45,90 @@ export function GiftForm({ isApproved }: GiftFormProps) {
     }
   }
 
-  async function handleSubmit(formData: FormData) {
+  // Mudamos para uma função de submissão manual para garantir que o arquivo seja enviado corretamente
+  async function handleOnSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    
     if (!isApproved) {
       toast.error("Sua conta precisa estar aprovada para criar presentes.");
       return;
     }
 
     setIsUploading(true);
+    const formData = new FormData(e.currentTarget);
+
     try {
-      await createGift(formData);
-      formRef.current?.reset();
-      setImagePreview(null);
-      toast.success("Presente criado com sucesso!");
+      const result = await createGift(formData);
+      if (result.success) {
+        formRef.current?.reset();
+        setImagePreview(null);
+        toast.success("Presente criado com sucesso!");
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro ao criar presente.";
       toast.error(message);
-      console.error(error);
     } finally {
       setIsUploading(false);
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="p-6 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden w-full">
+      {/* Header - Ajustado para mobile */}
+      <div className="p-4 sm:p-6 border-b border-gray-50 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+          <h2 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">
             <PlusCircle size={20} className="text-rose-600" />
             Novo Presente
           </h2>
-          <p className="text-xs text-gray-500 mt-1">Cadastre os itens que seus convidados poderão escolher.</p>
+          <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">Cadastre os itens para seus convidados escolherem.</p>
         </div>
         {!isApproved && (
-          <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 uppercase tracking-wider">
+          <span className="bg-amber-100 text-amber-700 text-[9px] sm:text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 uppercase tracking-wider">
             <Lock size={10} /> Bloqueado
           </span>
         )}
       </div>
 
       {!isApproved ? (
-        <div className="p-10 flex flex-col items-center text-center space-y-4">
-          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center">
-            <AlertCircle size={32} />
+        <div className="p-6 sm:p-10 flex flex-col items-center text-center space-y-4">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center">
+            <AlertCircle size={30} />
           </div>
           <div className="max-w-xs">
-            <h3 className="text-gray-900 font-bold">Verificação Necessária</h3>
-            <p className="text-sm text-gray-500 mt-2">
-              Sua conta ainda não foi aprovada pelo Asaas. Por segurança, você só poderá cadastrar presentes após a aprovação total da sua carteira.
+            <h3 className="text-gray-900 font-bold text-sm sm:text-base">Verificação Necessária</h3>
+            <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+              Complete a validação da sua carteira na aba &quot;Conta e Saques&quot; para liberar o cadastro de presentes.
             </p>
           </div>
-          <p className="text-xs font-medium text-rose-600 bg-rose-50 px-3 py-2 rounded-lg border border-rose-100">
-            Acesse a aba <strong>&quot;Conta e Saques&quot;</strong> para completar sua validação.
-          </p>
         </div>
       ) : (
-        <form ref={formRef} action={handleSubmit} className="p-6 space-y-6">
-          {/* Seção 1: Imagem */}
-          <div className="flex flex-col items-center justify-center">
-            <Label className="self-start mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+        <form ref={formRef} onSubmit={handleOnSubmit} className="p-4 sm:p-6 space-y-5 sm:space-y-6">
+          {/* Seção 1: Imagem - Responsiva */}
+          <div className="space-y-2">
+            <Label className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400">
               Imagem do Presente
             </Label>
             <div className="relative w-full group">
               {imagePreview ? (
-                <div className="relative w-full h-48 rounded-2xl overflow-hidden border-2 border-rose-100">
+                <div className="relative w-full h-40 sm:h-48 rounded-2xl overflow-hidden border-2 border-rose-100 shadow-inner">
                   <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => setImagePreview(null)}
-                    className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-full text-rose-600 shadow-sm hover:bg-white"
+                    className="absolute top-2 right-2 p-2 bg-white/90 rounded-full text-rose-600 shadow-md hover:bg-white active:scale-90 transition-all"
                   >
                     <X size={16} />
                   </button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer hover:bg-gray-50 hover:border-rose-300 transition-all">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <ImagePlus className="w-10 h-10 text-gray-300 mb-2 group-hover:text-rose-400" />
-                    <p className="text-sm text-gray-500">Clique para enviar foto</p>
-                    <p className="text-[10px] text-gray-400 mt-1">JPG, PNG ou WebP (Máx. 2MB)</p>
+                <label className="flex flex-col items-center justify-center w-full h-40 sm:h-48 border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer hover:bg-gray-50 hover:border-rose-300 transition-all active:bg-gray-100">
+                  <div className="flex flex-col items-center justify-center p-4">
+                    <div className="p-3 bg-rose-50 rounded-full mb-2">
+                        <ImagePlus className="w-6 h-6 sm:w-8 sm:h-8 text-rose-400" />
+                    </div>
+                    <p className="text-xs sm:text-sm font-medium text-gray-600 text-center">Tocar para enviar foto</p>
+                    <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1">Quadrada (1:1) recomendada</p>
                   </div>
                   <input 
                     type="file" 
@@ -123,29 +136,28 @@ export function GiftForm({ isApproved }: GiftFormProps) {
                     className="hidden" 
                     accept="image/*" 
                     onChange={handleImageChange}
-                    required 
                   />
                 </label>
               )}
             </div>
           </div>
 
-          {/* Seção 2: Informações Básicas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1">
-                <Tag size={12} /> Título do Presente
+          {/* Seção 2: Inputs - Grid Responsivo */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1">
+                <Tag size={12} /> Título
               </Label>
               <Input
                 name="title"
                 required
-                placeholder="Ex: Jantar Romântico em Paris"
-                className="h-11 rounded-xl border-gray-200 focus:ring-rose-500"
+                placeholder="Ex: Jantar Romântico"
+                className="h-12 rounded-xl border-gray-100 bg-gray-50/30 focus:bg-white transition-all"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1">
                 <DollarSign size={12} /> Preço (R$)
               </Label>
               <Input
@@ -154,29 +166,41 @@ export function GiftForm({ isApproved }: GiftFormProps) {
                 step="0.01"
                 required
                 placeholder="0,00"
-                className="h-11 rounded-xl border-gray-200 focus:ring-rose-500"
+                className="h-12 rounded-xl border-gray-100 bg-gray-50/30 focus:bg-white transition-all"
               />
             </div>
           </div>
 
-          {/* Seção 3: Detalhes */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-end">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1">
+          {/* Seção 3: Detalhes e Checkbox */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1">
                 <Layers size={12} /> Categoria
               </Label>
-              <select
-                name="category"
-                className="flex h-11 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 appearance-none cursor-pointer"
-              >
-                <option value="Cozinha">🏠 Casa / Cozinha</option>
-                <option value="Viagem">✈️ Viagem / Lua de Mel</option>
-                <option value="Lazer">🥂 Lazer / Experiência</option>
-                <option value="Outros">🎁 Outros</option>
-              </select>
+              <div className="relative">
+                <select
+                  name="category"
+                  className="flex h-12 w-full rounded-xl border border-gray-100 bg-gray-50/30 px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 appearance-none cursor-pointer"
+                >
+                  <option value="Cozinha">🏠 Casa / Cozinha</option>
+                  <option value="Viagem">✈️ Viagem / Lua de Mel</option>
+                  <option value="Lazer">🥂 Lazer / Experiência</option>
+                  <option value="Outros">🎁 Outros</option>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                    <Layers size={14} />
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3 p-3 bg-rose-50/50 rounded-xl border border-rose-100/50 h-11">
+            {/* Switch de Exclusividade - Ajustado para Toque Mobile */}
+            <div className="flex items-center justify-between p-3 sm:p-4 bg-rose-50/30 rounded-xl border border-rose-100/50 h-12">
+               <Label
+                  htmlFor="isExclusive"
+                  className="text-xs font-bold text-rose-800 cursor-pointer flex items-center gap-2"
+                >
+                  <Check size={14} /> Presente Único?
+                </Label>
               <div className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
@@ -185,13 +209,7 @@ export function GiftForm({ isApproved }: GiftFormProps) {
                   defaultChecked={true}
                   className="sr-only peer"
                 />
-                <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600"></div>
-                <Label
-                  htmlFor="isExclusive"
-                  className="ml-3 text-xs font-bold text-rose-900 cursor-pointer"
-                >
-                  Presente Exclusivo
-                </Label>
+                <div className="w-10 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
               </div>
             </div>
           </div>
@@ -199,14 +217,14 @@ export function GiftForm({ isApproved }: GiftFormProps) {
           <Button
             type="submit"
             disabled={isUploading}
-            className="w-full h-12 bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-lg shadow-rose-200 transition-all active:scale-[0.98]"
+            className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl shadow-lg shadow-rose-100 transition-all active:scale-[0.97] text-base font-bold"
           >
             {isUploading ? (
               <>
-                <Loader2 className="animate-spin mr-2" size={18} /> Processando...
+                <Loader2 className="animate-spin mr-2" size={20} /> Criando...
               </>
             ) : (
-              "Criar Presente Agora"
+              "Salvar Presente"
             )}
           </Button>
         </form>

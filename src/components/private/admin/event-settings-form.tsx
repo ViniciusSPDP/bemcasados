@@ -7,29 +7,27 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { X, Upload, Loader2, Music, Image as ImageIcon, Captions } from "lucide-react"
+import { X, Upload, Loader2, Music, Image as ImageIcon } from "lucide-react"
 import Image from "next/image"
 import { toast } from "sonner"
 import { Event, GalleryItem } from "@prisma/client"
+import { useRouter } from "next/navigation"
 
-// Tipo extendido para incluir os itens da galeria
 type EventWithGallery = Event & { galleryItems: GalleryItem[] }
 
 interface EventSettingsFormProps {
   event: EventWithGallery
 }
 
-// Tipos para o estado local
 interface LocalKeptItem { type: 'kept'; id: string; url: string; caption: string }
 interface LocalNewItem { type: 'new'; id: string; file: File; previewUrl: string; caption: string }
 type LocalGalleryItem = LocalKeptItem | LocalNewItem;
 
 export function EventSettingsForm({ event }: EventSettingsFormProps) {
   const [isPending, setIsPending] = useState(false)
+  const router = useRouter()
   
-  // Estado unificado para gerenciar a ordem e as legendas
   const [galleryItems, setGalleryItems] = useState<LocalGalleryItem[]>(() => {
-    // Inicializa com os itens vindos do banco, ordenados
     return event.galleryItems
       .sort((a, b) => a.orderIndex - b.orderIndex)
       .map(item => ({
@@ -51,7 +49,7 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
 
       const newItems: LocalNewItem[] = files.map(file => ({
         type: 'new',
-        id: crypto.randomUUID(), // ID temporário para React key
+        id: crypto.randomUUID(),
         file: file,
         previewUrl: URL.createObjectURL(file),
         caption: ''
@@ -66,7 +64,7 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
     setGalleryItems(prev => {
         const item = prev[indexToRemove];
         if (item.type === 'new') {
-            URL.revokeObjectURL(item.previewUrl); // Limpa memória
+            URL.revokeObjectURL(item.previewUrl);
         }
         return prev.filter((_, idx) => idx !== indexToRemove);
     })
@@ -90,7 +88,6 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
     formData.append("welcomeMessage", (form.elements.namedItem("welcomeMessage") as HTMLTextAreaElement).value)
     formData.append("videoUrl", (form.elements.namedItem("videoUrl") as HTMLInputElement).value)
 
-    // Separa e anexa os itens da galeria
     galleryItems.forEach(item => {
         if (item.type === 'kept') {
             formData.append("keptUrls", item.url);
@@ -105,81 +102,78 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
         const result = await updateEventSettings(formData)
         if(result.success) {
             toast.success("Evento atualizado com sucesso!")
-            // Em um mundo ideal, recarregaríamos os dados do servidor aqui.
-            // Para simplificar, limpamos os previews de novos arquivos.
-            setGalleryItems(prev => prev.filter(item => {
+            router.refresh()
+            // Limpa os objetos de URL para evitar vazamento de memória
+            galleryItems.forEach(item => {
                 if(item.type === 'new') URL.revokeObjectURL(item.previewUrl);
-                // Mantemos os 'kept' na tela pois agora eles são a verdade,
-                // mas os 'new' deveriam virar 'kept' após save.
-                // O jeito mais fácil de sincronizar sem refresh é este:
-                 return item.type === 'kept';
-            }));
-             // Uma solução melhor para UX seria forçar um router.refresh() aqui.
+            });
         }
-    } catch (error) {
+    } catch  {
         toast.error("Erro ao atualizar evento.")
-        console.error(error)
     } finally {
         setIsPending(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-6 pb-10">
       
-      <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+      <Card className="border-none sm:border shadow-none sm:shadow-sm">
+        <CardHeader className="px-4 sm:px-6">
+            <CardTitle className="flex items-center gap-2 text-xl font-bold">
                 <ImageIcon className="w-5 h-5 text-rose-500"/>
                 Galeria & Stories
             </CardTitle>
-            <CardDescription>
-                Adicione fotos e escreva uma legenda para cada momento. Máximo 10 fotos.
+            <CardDescription className="text-xs sm:text-sm">
+                Adicione até 10 fotos. Elas aparecerão como stories no seu site.
             </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 px-4 sm:px-6">
             
-            {/* Grid de Galeria com Legendas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {galleryItems.map((item, idx) => {
                     const imageUrl = item.type === 'kept' ? item.url : item.previewUrl;
                     return (
-                    <div key={item.id} className="space-y-2">
-                        <div className="relative aspect-9/16 bg-gray-100 rounded-lg overflow-hidden border shadow-sm group">
-                            <Image src={imageUrl} alt="Foto galeria" fill className={`object-cover transition ${item.type === 'new' ? 'opacity-90' : ''}`} />
+                    <div key={item.id} className="space-y-2 animate-in fade-in zoom-in duration-300">
+                        <div className="relative aspect-9/16 bg-gray-100 rounded-2xl overflow-hidden border shadow-sm group">
+                            {/* O segredo para o preview não corromper é o unoptimized */}
+                            <Image 
+                                src={imageUrl} 
+                                alt="Foto galeria" 
+                                fill 
+                                unoptimized={item.type === 'new'} 
+                                className="object-cover" 
+                            />
                             
                             {item.type === 'new' && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none">
-                                    <span className="text-xs font-bold text-white bg-rose-500/80 px-2 py-1 rounded">NOVA</span>
+                                <div className="absolute top-2 left-2 pointer-events-none">
+                                    <span className="text-[10px] font-bold text-white bg-rose-500 px-2 py-1 rounded-full shadow-lg">NOVA</span>
                                 </div>
                             )}
                             
                             <button 
                                 type="button"
                                 onClick={() => removeItem(idx)}
-                                className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full hover:bg-red-600 transition opacity-0 group-hover:opacity-100 md:opacity-100"
+                                className="absolute top-2 right-2 bg-black/60 text-white p-2 rounded-full hover:bg-red-600 transition-all shadow-lg active:scale-90"
                             >
                                 <X size={16} />
                             </button>
                         </div>
-                        {/* Input de Legenda */}
                         <div className="flex items-center gap-2 px-1">
-                             <Captions size={16} className="text-gray-400 shrink-0" />
                              <Input 
-                                placeholder="Escreva uma legenda..."
+                                placeholder="Legenda..."
                                 value={item.caption}
                                 onChange={(e) => updateCaption(idx, e.target.value)}
-                                className="h-8 text-sm"
+                                className="h-9 text-xs sm:text-sm rounded-xl border-gray-100 focus:bg-white"
                              />
                         </div>
                     </div>
                 )})}
 
-                {/* Botão Upload */}
                 {galleryItems.length < 10 && (
-                    <label className="flex flex-col items-center justify-center aspect-9/16border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-rose-500 hover:bg-rose-50 transition bg-gray-50/50 h-full min-h-50">
+                    <label className="flex flex-col items-center justify-center aspect-9/16 border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer hover:border-rose-500 hover:bg-rose-50 transition bg-gray-50/50 active:bg-rose-100">
                         <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                        <span className="text-sm text-gray-500 font-medium text-center px-2">Adicionar Foto</span>
+                        <span className="text-xs text-gray-500 font-bold text-center px-2">Adicionar Foto</span>
                         <input 
                             type="file" 
                             accept="image/*" 
@@ -191,44 +185,41 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                <div className="space-y-2">
-                    <Label htmlFor="introTitle">Título da Entrada</Label>
-                    <Input name="introTitle" defaultValue={event.introTitle} placeholder="VOCÊ FOI CONVOCADO" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6 border-t border-gray-50">
+                <div className="space-y-1.5">
+                    <Label htmlFor="introTitle" className="text-xs font-bold text-gray-500 uppercase">Título da Entrada</Label>
+                    <Input name="introTitle" defaultValue={event.introTitle} className="h-11 rounded-xl" />
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="introSubtitle">Subtítulo</Label>
-                    <Input name="introSubtitle" defaultValue={event.introSubtitle} placeholder="PARA UMA MISSÃO ESPECIAL" />
+                <div className="space-y-1.5">
+                    <Label htmlFor="introSubtitle" className="text-xs font-bold text-gray-500 uppercase">Subtítulo</Label>
+                    <Input name="introSubtitle" defaultValue={event.introSubtitle} className="h-11 rounded-xl" />
                 </div>
             </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+      <Card className="border-none sm:border shadow-none sm:shadow-sm">
+        <CardHeader className="px-4 sm:px-6">
+            <CardTitle className="flex items-center gap-2 text-xl font-bold">
                 <Music className="w-5 h-5 text-rose-500"/>
-                Mensagem & Música
+                Conteúdo & Música
             </CardTitle>
-            <CardDescription>
-                Personalize o que seus convidados verão e ouvirão ao abrir o site.
-            </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-            <div className="space-y-2">
-                <Label htmlFor="videoUrl">Link do YouTube (Música de Fundo)</Label>
-                <Input name="videoUrl" defaultValue={event.videoUrl || ""} placeholder="https://www.youtube.com/watch?v=..." />
+        <CardContent className="space-y-6 px-4 sm:px-6">
+            <div className="space-y-1.5">
+                <Label htmlFor="videoUrl" className="text-xs font-bold text-gray-500 uppercase">Link do YouTube (Música)</Label>
+                <Input name="videoUrl" defaultValue={event.videoUrl || ""} placeholder="https://www.youtube.com/watch?v=..." className="h-11 rounded-xl" />
             </div>
-            <div className="space-y-2">
-                <Label htmlFor="welcomeMessage">Mensagem Final</Label>
-                <Textarea name="welcomeMessage" defaultValue={event.welcomeMessage || ""} placeholder="Escreva algo carinhoso..." className="min-h-25" />
+            <div className="space-y-1.5">
+                <Label htmlFor="welcomeMessage" className="text-xs font-bold text-gray-500 uppercase">Mensagem aos Convidados</Label>
+                <Textarea name="welcomeMessage" defaultValue={event.welcomeMessage || ""} placeholder="Escreva algo carinhoso..." className="min-h-30 rounded-2xl" />
             </div>
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isPending} className="w-full md:w-auto min-w-50">
-            {isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...</> : "Salvar Configurações"}
+      <div className="px-4 sm:px-0">
+        <Button type="submit" disabled={isPending} className="w-full h-14 text-lg font-bold rounded-2xl bg-rose-600 hover:bg-rose-700 shadow-xl shadow-rose-100 transition-all active:scale-95">
+            {isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Salvando...</> : "Salvar Configurações"}
         </Button>
       </div>
     </form>
