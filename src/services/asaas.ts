@@ -34,6 +34,28 @@ interface CustomerData {
   email: string;
 }
 
+// Interface para o status detalhado da conta
+interface AsaasStatusResponse {
+  commercialInfo: string;
+  bankAccountInfo: string;
+  documentation: string;
+  general: string; // O campo crucial para liberação de PIX e Saques
+}
+
+// Interfaces para a listagem de documentos (Substituindo o 'any')
+interface AsaasDocument {
+  id: string;
+  status: string;
+  type: string;
+  title: string;
+  description: string;
+  onboardingUrl?: string; // Link para envio transparente (cadastro.io)
+}
+
+interface AsaasDocumentsResponse {
+  data: AsaasDocument[];
+}
+
 // --- TIPAGENS PARA CARTÃO DE CRÉDITO ---
 
 interface CreditCardInfo {
@@ -173,7 +195,6 @@ export async function createAsaasCharge({
   const calculatedFee = finalValue - value;
   const asaasCustomerId = await getOrCreateCustomer(customer, subAccountApiKey);
 
-  // Payload Base
   const chargePayload = {
     customer: asaasCustomerId,
     billingType: method,
@@ -187,13 +208,11 @@ export async function createAsaasCharge({
         percentualValue: 1,
       }
     ],
-    // Inclusão condicional de dados de cartão
     ...(method === "CREDIT_CARD" && creditCard && {
       creditCard,
       creditCardHolderInfo,
       remoteIp
     }),
-    // Ajuste de valores para parcelamento
     ...(installmentCount > 1 
       ? { installmentCount, totalValue: finalValue }
       : { value: finalValue })
@@ -220,41 +239,11 @@ export async function createAsaasCharge({
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
         const asaasErrors = error.response?.data?.errors;
-        console.error("Erro Asaas:", asaasErrors || error.message);
         if (asaasErrors && asaasErrors.length > 0) {
             throw new Error(asaasErrors[0].description);
         }
     }
     throw new Error("Erro ao criar cobrança no gateway.");
-  }
-}
-
-// --- UTILITÁRIOS WHITE LABEL (PIX/BOLETO) ---
-
-export async function getPixQrCode(paymentId: string, subAccountApiKey: string) {
-  try {
-    const { data } = await api.get(`/payments/${paymentId}/pixQrCode`, {
-      headers: { access_token: subAccountApiKey }
-    });
-    return {
-      encodedImage: data.encodedImage, 
-      payload: data.payload 
-    };
-  } catch (error) {
-    console.error("Erro ao gerar QR Code PIX:", error);
-    return null;
-  }
-}
-
-export async function getBoletoCode(paymentId: string, subAccountApiKey: string) {
-  try {
-    const { data } = await api.get(`/payments/${paymentId}/identificationField`, {
-      headers: { access_token: subAccountApiKey }
-    });
-    return data.identificationField;
-  } catch (error) {
-    console.error("Erro ao buscar linha digitável:", error);
-    return null;
   }
 }
 
@@ -313,26 +302,42 @@ export async function getAsaasTransferHistory(subAccountApiKey: string) {
 export async function getAsaasOnboardingLink(subAccountApiKey: string): Promise<string> {
   const headers = { access_token: subAccountApiKey };
   try {
-    const { data: info } = await api.get("/myAccount/commercialInfo", { headers });
-    if (info.status === "APPROVED") {
-        throw new Error("Sua conta já está aprovada!");
+    const { data: status } = await api.get<AsaasStatusResponse>("/myAccount/status", { headers });
+    
+    if (status.general === "APPROVED") {
+        throw new Error("Sua conta já está totalmente aprovada!");
     }
+
+    // Usando a nova interface AsaasDocumentsResponse para tipar o retorno
+    const { data: docs } = await api.get<AsaasDocumentsResponse>("/myAccount/documents", { headers });
+    
+    // Procura por um documento que possua a URL de onboarding (Selfie/Identidade)
+    // O tipo 'd' é inferido automaticamente como AsaasDocument
+    const docWithLink = docs.data?.find((d) => d.onboardingUrl);
+    
+    if (docWithLink?.onboardingUrl) {
+        return docWithLink.onboardingUrl;
+    }
+
     const { data: onboarding } = await api.get("/myAccount/onboarding", { headers });
     if (onboarding.onboardingUrl) return onboarding.onboardingUrl;
+
     const { data: custom } = await api.post("/onboarding/customize", {}, { headers });
     return custom.url;
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Erro no onboarding.";
+    const errorMessage = error instanceof Error ? error.message : "Erro ao gerar link de verificação.";
     throw new Error(errorMessage);
   }
 }
 
 export async function isAsaasAccountApproved(subAccountApiKey: string): Promise<boolean> {
   try {
-    const { data } = await api.get("/myAccount/commercialInfo", {
+    const { data } = await api.get<AsaasStatusResponse>("/myAccount/status", {
       headers: { access_token: subAccountApiKey }
     });
-    return data.status === "APPROVED";
+    
+    // A conta só está apta para PIX e saques quando 'general' é 'APPROVED'
+    return data.general === "APPROVED";
   } catch {
     return false;
   }
