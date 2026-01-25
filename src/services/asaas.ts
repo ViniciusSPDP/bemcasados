@@ -34,22 +34,20 @@ interface CustomerData {
   email: string;
 }
 
-// Interface para o status detalhado da conta
 interface AsaasStatusResponse {
   commercialInfo: string;
   bankAccountInfo: string;
   documentation: string;
-  general: string; // O campo crucial para liberação de PIX e Saques
+  general: string;
 }
 
-// Interfaces para a listagem de documentos (Substituindo o 'any')
 interface AsaasDocument {
   id: string;
   status: string;
   type: string;
   title: string;
   description: string;
-  onboardingUrl?: string; // Link para envio transparente (cadastro.io)
+  onboardingUrl?: string;
 }
 
 interface AsaasDocumentsResponse {
@@ -148,7 +146,11 @@ export async function createAsaasSubAccount(
     };
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
-      console.error("Erro ao criar subconta no Asaas:", error.response?.data || error.message);
+      const asaasErrors = error.response?.data?.errors;
+      // Se o Asaas retornou um erro estruturado, lançamos a descrição dele
+      if (asaasErrors && asaasErrors.length > 0) {
+        throw new Error(asaasErrors[0].description);
+      }
     }
     throw new Error("Não foi possível criar a subconta no gateway.");
   }
@@ -247,6 +249,35 @@ export async function createAsaasCharge({
   }
 }
 
+// --- UTILITÁRIOS WHITE LABEL (PIX/BOLETO) ---
+
+export async function getPixQrCode(paymentId: string, subAccountApiKey: string) {
+  try {
+    const { data } = await api.get(`/payments/${paymentId}/pixQrCode`, {
+      headers: { access_token: subAccountApiKey }
+    });
+    return {
+      encodedImage: data.encodedImage, 
+      payload: data.payload 
+    };
+  } catch (error) {
+    console.error("Erro ao gerar QR Code PIX:", error);
+    return null;
+  }
+}
+
+export async function getBoletoCode(paymentId: string, subAccountApiKey: string) {
+  try {
+    const { data } = await api.get(`/payments/${paymentId}/identificationField`, {
+      headers: { access_token: subAccountApiKey }
+    });
+    return data.identificationField;
+  } catch (error) {
+    console.error("Erro ao buscar linha digitável:", error);
+    return null;
+  }
+}
+
 // --- FUNÇÕES FINANCEIRAS ---
 
 export async function getAsaasBalance(subAccountApiKey: string): Promise<number> {
@@ -308,11 +339,8 @@ export async function getAsaasOnboardingLink(subAccountApiKey: string): Promise<
         throw new Error("Sua conta já está totalmente aprovada!");
     }
 
-    // Usando a nova interface AsaasDocumentsResponse para tipar o retorno
     const { data: docs } = await api.get<AsaasDocumentsResponse>("/myAccount/documents", { headers });
     
-    // Procura por um documento que possua a URL de onboarding (Selfie/Identidade)
-    // O tipo 'd' é inferido automaticamente como AsaasDocument
     const docWithLink = docs.data?.find((d) => d.onboardingUrl);
     
     if (docWithLink?.onboardingUrl) {
@@ -336,7 +364,6 @@ export async function isAsaasAccountApproved(subAccountApiKey: string): Promise<
       headers: { access_token: subAccountApiKey }
     });
     
-    // A conta só está apta para PIX e saques quando 'general' é 'APPROVED'
     return data.general === "APPROVED";
   } catch {
     return false;
