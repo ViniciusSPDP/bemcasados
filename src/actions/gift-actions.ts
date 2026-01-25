@@ -7,13 +7,15 @@ import { uploadFileToS3 } from "@/lib/s3";
 import { revalidatePath } from "next/cache";
 
 export async function createGift(formData: FormData) {
-
-    const session = await verifySession()
-
+    const session = await verifySession();
 
     const title = formData.get("title") as string;
     const price = parseFloat(formData.get("price") as string);
     const category = formData.get("category") as string;
+    
+    // CAPTURAR O NOVO CAMPO
+    // O checkbox envia "on" se marcado, ou null se desmarcado.
+    const isExclusive = formData.get("isExclusive") === "on";
 
     const imageFile = formData.get("image") as File;
     let imageUrl = "";
@@ -30,10 +32,8 @@ export async function createGift(formData: FormData) {
     }
 
     const event = await prisma.event.findFirst({
-        where: {
-            userId: session.userId
-        }
-    })
+        where: { userId: session.userId }
+    });
 
     if (!event) {
         throw new Error("Evento não encontrado");
@@ -45,13 +45,15 @@ export async function createGift(formData: FormData) {
             price,
             imageUrl,
             category,
+            isExclusive, // SALVAR NO BANCO
             eventId: event.id,
             available: true,
         },
     });
 
-    revalidatePath("/admin")
-    revalidatePath("/")
+    revalidatePath("/admin");
+    // Se o seu slug de evento for dinâmico, o ideal é revalidar o slug:
+    revalidatePath(`/${event.slug}`);
 }
 
 export async function deleteGift(id: string) {

@@ -1,10 +1,11 @@
 // src/app/api/checkout/route.ts
 import { NextResponse } from "next/server";
-import { z } from "zod"
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { createAsaasCharge } from "@/services/asaas"; // Importe apenas o createCharge
-import { PaymentMethod } from "@/lib/fees"; // Tipos vêm do lib/fees
+import { createAsaasCharge, getPixQrCode, getBoletoCode } from "@/services/asaas";
+import { PaymentMethod } from "@/lib/fees";
 
+// Schema validando os campos necessários para Cartão White Label
 const CheckoutSchema = z.object({
     giftId: z.string().uuid(),
     guestName: z.string().min(3, "O nome muito curto"),
@@ -12,42 +13,73 @@ const CheckoutSchema = z.object({
     guestCPFCNPJ: z.string().min(11, "CPF/CNPJ inválido").transform(v => v.replace(/\D/g, "")),
     paymentMethod: z.enum(["CREDIT_CARD", "BOLETO", "PIX"]),
     message: z.string().max(500).optional(),
-    installments: z.coerce.number().int().min(1).max(12).default(1), // Limitado a 12 por padrão
+    installments: z.coerce.number().int().min(1).max(12).default(1),
+    // Dados do cartão (opcionais, usados apenas em CREDIT_CARD)
+    creditCard: z.object({
+        holderName: z.string(),
+        number: z.string(),
+        expiryMonth: z.string(),
+        expiryYear: z.string(),
+        ccv: z.string()
+    }).optional()
 });
 
 export async function POST(req: Request) {
-    try{
+    try {
         const body = await req.json();
         const data = CheckoutSchema.parse(body);
 
-        // Validação extra: PIX não parcela
+        // Captura o IP do cliente (exigido pelo Asaas para transações de cartão)
+        const remoteIp = req.headers.get("x-forwarded-for") || "127.0.0.1";
+
         if (data.paymentMethod === "PIX" && data.installments > 1) {
              return NextResponse.json({ error: "Pix não permite parcelamento." }, { status: 400 });
         }
 
+        // 1. Busca presente e evento (credenciais da subconta)
         const gift = await prisma.gift.findUnique({
             where: { id: data.giftId },
+            include: { event: true }
         });
 
-        if(!gift){
-            return NextResponse.json({ error: "Presente não encontrado." }, { status: 404 });
+        if (!gift || !gift.event) {
+            return NextResponse.json({ error: "Presente ou evento não encontrado." }, { status: 404 });
         }
 
-        const giftPrice = Number(gift.price);
-        
+        if (!gift.event.walletId || !gift.event.asaasApiKey) {
+            return NextResponse.json({ error: "Configuração de recebimento incompleta." }, { status: 400 });
+        }
+
+        // 2. Chamada ao Asaas para criar a cobrança
+        // Se for cartão, passamos os objetos creditCard e creditCardHolderInfo
         const asaasResponse = await createAsaasCharge({
             customer: {
                 name: data.guestName,
                 cpfCnpj: data.guestCPFCNPJ,
                 email: data.guestEmail,
             },
-            value: giftPrice,
+            value: Number(gift.price),
             method: data.paymentMethod as PaymentMethod,
-            description: `Compra do presente: ${gift.title}`,
+            description: `Presente para ${gift.event.coupleName}: ${gift.title}`,
             externalReference: gift.id,
             installmentCount: data.installments,
+            subAccountApiKey: gift.event.asaasApiKey,
+            remoteIp,
+            // Só envia se for cartão
+            ...(data.paymentMethod === "CREDIT_CARD" && data.creditCard && {
+                creditCard: data.creditCard,
+                creditCardHolderInfo: {
+                    name: data.guestName,
+                    email: data.guestEmail,
+                    cpfCnpj: data.guestCPFCNPJ,
+                    postalCode: "01310100", // CEP genérico se não tiver no form
+                    addressNumber: "SN",
+                    mobilePhone: "11999999999"
+                }
+            })
         });
 
+        // 3. Salva a transação no banco de dados local
         const transaction = await prisma.transaction.create({
             data: {
                 giftId: gift.id,
@@ -55,29 +87,43 @@ export async function POST(req: Request) {
                 guestEmail: data.guestEmail,
                 guestCPF: data.guestCPFCNPJ,
                 message: data.message,
-
                 amountOriginal: asaasResponse.financials.original,
                 amountCharged: asaasResponse.financials.total,
                 feeAmount: asaasResponse.financials.fee,
-
                 asaasId: asaasResponse.paymentId,
                 paymentLink: asaasResponse.invoiceUrl,
                 paymentMethod: data.paymentMethod,
-                status: "PENDING",
+                status: asaasResponse.status === "CONFIRMED" ? "PAID" : "PENDING",
             },
         });
 
+        // --- LÓGICA WHITE LABEL ---
+        let extraInfo = null;
+
+        if (data.paymentMethod === "PIX") {
+            extraInfo = await getPixQrCode(asaasResponse.paymentId, gift.event.asaasApiKey);
+        } else if (data.paymentMethod === "BOLETO") {
+            const barCode = await getBoletoCode(asaasResponse.paymentId, gift.event.asaasApiKey);
+            extraInfo = { barCode, pdfUrl: asaasResponse.invoiceUrl };
+        }
+
+        // 4. Retorno unificado
         return NextResponse.json({
             success: true,
-            paymentUrl: asaasResponse.invoiceUrl,
-            pixQrCode: asaasResponse.pixQrCode,
             transactionId: transaction.id,
+            paymentMethod: data.paymentMethod,
+            status: transaction.status, // Útil para Cartão (se já aprovou na hora)
+            paymentUrl: asaasResponse.invoiceUrl,
+            pix: data.paymentMethod === "PIX" ? extraInfo : null,
+            boleto: data.paymentMethod === "BOLETO" ? extraInfo : null,
         });
-    } catch (error) { 
+
+    } catch (error: unknown) { 
         console.error("Erro no checkout:", error);
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: "Dados inválidos", details: error.issues }, { status: 400 });
-        }
-        return NextResponse.json({ error: "Erro interno ao processar pagamento." }, { status: 500 });
+        
+        // Repassa o erro amigável do Asaas (ex: cartão recusado)
+        const errorMessage = error instanceof Error ? error.message : "Erro interno ao processar pagamento.";
+        
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }

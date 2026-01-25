@@ -25,6 +25,7 @@ model Event {
   title      String
   coupleName String
   eventDate  DateTime
+  pixKey       String?
 
   //Story
   galleryItems   GalleryItem[]
@@ -51,6 +52,7 @@ model Gift {
   imageUrl    String?
   category    String?
   available   Boolean @default(true)
+  isExclusive Boolean  @default(true)
 
   //Relacionamento com o evento
   eventId String

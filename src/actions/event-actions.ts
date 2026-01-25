@@ -4,6 +4,14 @@ import { prisma } from "@/lib/prisma"
 import { uploadFileToS3 } from "@/lib/s3"
 import { verifySession } from "@/lib/dal"
 import { revalidatePath } from "next/cache"
+import { createAsaasSubAccount, getAsaasBalance, getAsaasOnboardingLink, transferAsaasBalance } from "@/services/asaas"
+
+// Definição de tipo para o estado da Action
+interface ActionState {
+    success: boolean;
+    message: string;
+    url?: string;
+}
 
 export async function updateEventSettings(formData: FormData) {
   const session = await verifySession()
@@ -16,14 +24,10 @@ export async function updateEventSettings(formData: FormData) {
     throw new Error("Evento não encontrado")
   }
 
-  // 1. Coleta campos de texto gerais
   const introTitle = formData.get("introTitle") as string
   const introSubtitle = formData.get("introSubtitle") as string
   const welcomeMessage = formData.get("welcomeMessage") as string
   const videoUrl = formData.get("videoUrl") as string
-  
-  // 2. Processamento da Galeria
-  // O frontend vai mandar arrays paralelos: keptUrls[] com keptCaptions[], e newFiles[] com newCaptions[]
   
   const keptUrls = formData.getAll("keptUrls") as string[];
   const keptCaptions = formData.getAll("keptCaptions") as string[];
@@ -38,7 +42,6 @@ export async function updateEventSettings(formData: FormData) {
   
   let finalItems: FinalGalleryItem[] = [];
 
-  // 2a. Adiciona os itens mantidos (já com suas legendas atualizadas)
   keptUrls.forEach((url, index) => {
     finalItems.push({
         imageUrl: url,
@@ -46,7 +49,6 @@ export async function updateEventSettings(formData: FormData) {
     });
   });
 
-  // 2b. Processa uploads e adiciona os novos itens com suas legendas
   for (let i = 0; i < newFiles.length; i++) {
     const file = newFiles[i] as File;
     const caption = newCaptions[i] || null;
@@ -61,23 +63,18 @@ export async function updateEventSettings(formData: FormData) {
     }
   }
 
-  // Limita a 10 itens
   finalItems = finalItems.slice(0, 10);
 
-  // 3. Atualização Atômica no Banco (Transação)
   await prisma.$transaction(async (tx) => {
-    // Atualiza dados gerais do evento
     await tx.event.update({
         where: { id: event.id },
         data: { introTitle, introSubtitle, welcomeMessage, videoUrl }
     });
 
-    // Remove todos os itens de galeria antigos
     await tx.galleryItem.deleteMany({
         where: { eventId: event.id }
     });
 
-    // Recria os itens na ordem correta
     if (finalItems.length > 0) {
         await tx.galleryItem.createMany({
             data: finalItems.map((item, index) => ({
@@ -94,4 +91,144 @@ export async function updateEventSettings(formData: FormData) {
   revalidatePath(`/${event.slug}`)
   
   return { success: true }
+}
+
+/**
+ * Action para configurar a subconta Asaas
+ */
+export async function setupAsaasAction(
+    _prevState: ActionState | undefined, 
+    formData: FormData
+): Promise<ActionState> {
+    const session = await verifySession();
+    
+    const user = await prisma.user.findUnique({
+        where: { id: session.userId }
+    });
+
+    const event = await prisma.event.findFirst({ 
+        where: { userId: session.userId } 
+    });
+
+    if (!event || !user) {
+        return { success: false, message: "Evento ou usuário não encontrado" };
+    }
+
+    try {
+        const rawData = {
+            name: event.coupleName,
+            email: formData.get("asaasEmail") as string,
+            cpfCnpj: formData.get("cpfCnpj") as string,
+            birthDate: formData.get("birthDate") as string,
+            mobilePhone: formData.get("mobilePhone") as string,
+            incomeValue: Number(formData.get("incomeValue")),
+            address: formData.get("address") as string,
+            addressNumber: formData.get("addressNumber") as string,
+            province: formData.get("province") as string,
+            postalCode: formData.get("postalCode") as string,
+        };
+
+        const asaasAccount = await createAsaasSubAccount(rawData);
+
+        await prisma.event.update({
+            where: { id: event.id },
+            data: {
+                asaasApiKey: asaasAccount.apiKey,
+                walletId: asaasAccount.walletId
+            }
+        });
+
+        revalidatePath("/admin");
+        return { success: true, message: "Conta configurada com sucesso!" };
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao configurar conta";
+        return { success: false, message: errorMessage };
+    }
+}
+
+/**
+ * Action para obter o link de verificação de documentos
+ */
+export async function getVerificationLinkAction(): Promise<ActionState> {
+    const session = await verifySession();
+    const event = await prisma.event.findFirst({ 
+        where: { userId: session.userId } 
+    });
+
+    if (!event || !event.asaasApiKey) {
+        return { success: false, message: "Configuração de pagamento não encontrada." };
+    }
+
+    try {
+        const url = await getAsaasOnboardingLink(event.asaasApiKey);
+        return { success: true, message: "Link gerado", url };
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : "Erro ao obter link";
+        return { success: false, message: msg };
+    }
+}
+
+/**
+ * Action para salvar a chave PIX no banco de dados
+ */
+export async function saveBankSettingsAction(
+    _prevState: ActionState | undefined, 
+    formData: FormData
+): Promise<ActionState> {
+    const session = await verifySession();
+    const pixKey = formData.get("pixKey") as string;
+
+    // 1. Buscamos o evento primeiro para ter o ID único
+    const event = await prisma.event.findFirst({
+        where: { userId: session.userId }
+    });
+
+    if (!event) {
+        return { success: false, message: "Evento não encontrado." };
+    }
+
+    try {
+        // 2. Atualizamos usando o ID único do evento
+        await prisma.event.update({
+            where: { id: event.id },
+            data: { pixKey }
+        });
+        
+        revalidatePath("/admin");
+        return { success: true, message: "Dados bancários salvos com sucesso!" };
+    } catch (error: unknown) {
+        console.error("Erro ao salvar PIX:", error);
+        return { success: false, message: "Erro ao salvar dados no banco." };
+    }
+}
+
+
+export async function requestWithdrawalAction(): Promise<ActionState> {
+    const session = await verifySession();
+    const event = await prisma.event.findFirst({ where: { userId: session.userId } });
+
+    if (!event || !event.asaasApiKey || !event.pixKey) {
+        return { success: false, message: "Dados bancários ou configuração de pagamento ausentes." };
+    }
+
+    try {
+        // 1. Pegar o saldo disponível real no momento
+        const balance = await getAsaasBalance(event.asaasApiKey);
+
+        if (balance <= 5) { // Considerando a taxa fixa do Asaas de R$ 5,00
+            return { success: false, message: "Saldo insuficiente para cobrir as taxas de saque." };
+        }
+
+        // 2. Solicitar transferência
+        const result = await transferAsaasBalance(event.asaasApiKey, balance, event.pixKey);
+        
+        if (result.success) {
+            revalidatePath("/admin");
+            return { success: true, message: result.message };
+        }
+        
+        return { success: false, message: result.message };
+    } catch {
+        return { success: false, message: "Falha ao processar o saque." };
+    }
 }
