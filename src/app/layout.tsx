@@ -1,35 +1,39 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Playfair_Display } from "next/font/google"; // Supondo que você usa essas fontes
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
-// Fontes (Ajuste conforme as que você já está usando)
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
+// Configuração das fontes
+const inter = Inter({ 
+  subsets: ["latin"], 
+  variable: "--font-inter" 
+});
 
-// 1. URL BASE do seu site (Importante para SEO e compartilhamento)
-// Quando subir para produção, mude para "https://seusite.com.br"
+const playfair = Playfair_Display({ 
+  subsets: ["latin"], 
+  variable: "--font-playfair" 
+});
+
+// URL BASE do seu site para SEO
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"; 
 
-// 2. Configuração de SEO Global
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: "BemCasados | Crie sua Lista de Presentes",
-    template: "%s | BemCasados" // Isso permite que páginas filhas tenham titulos como "Ana & Pedro | BemCasados"
+    template: "%s | BemCasados" 
   },
   description: "A plataforma perfeita para criar seu site de casamento, receber presentes em dinheiro e encantar seus convidados.",
   keywords: ["casamento", "lista de presentes", "site de casamento", "presentes em dinheiro"],
   authors: [{ name: "BemCasados Team" }],
   creator: "BemCasados",
   
-  // Ícones (Favicon)
   icons: {
-    icon: "/icon.svg", // O arquivo que criamos
+    icon: "/icon.svg", 
     shortcut: "/icon.svg",
-    apple: "/icon.svg", // Ícone para iPhone/iPad
+    apple: "/icon.svg", 
   },
 
-  // Open Graph (Como aparece no WhatsApp/Facebook)
+  // Configuração para WhatsApp, Facebook e Redes Sociais
   openGraph: {
     title: "BemCasados | O Melhor para seu Casamento",
     description: "Crie seu site de casamento e lista de presentes em minutos.",
@@ -39,7 +43,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/og-image.jpg", // Você deve criar uma imagem 1200x630px e colocar em public/
+        url: "/opengraph-image.jpg", // Atualizado para o novo arquivo
         width: 1200,
         height: 630,
         alt: "BemCasados Preview",
@@ -47,21 +51,20 @@ export const metadata: Metadata = {
     ],
   },
 
-  // Twitter Cards
+  // Configuração para o Twitter/X
   twitter: {
     card: "summary_large_image",
     title: "BemCasados",
     description: "Sua lista de presentes inteligente.",
-    images: ["/og-image.jpg"],
+    images: ["/opengraph-image.jpg"], // Atualizado para o novo arquivo
   },
 };
 
-// 3. Configuração de Viewport (Cores da barra do navegador no mobile)
 export const viewport: Viewport = {
-  themeColor: "#e11d48", // A cor Rose do seu tema
+  themeColor: "#e11d48", // Cor Rose do seu tema
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1, // Evita zoom indesejado em inputs no iOS
+  maximumScale: 1, 
 };
 
 export default function RootLayout({
