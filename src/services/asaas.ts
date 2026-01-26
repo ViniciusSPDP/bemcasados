@@ -88,10 +88,6 @@ interface AsaasChargePayload {
   externalReference: string;
   //notificationDisabled: boolean;
   postalService: boolean;
-  callback: {
-    successUrl: string;
-    autoRedirect: boolean;
-  };
   split: Array<{
     walletId: string | undefined;
     percentualValue: number;
@@ -220,7 +216,7 @@ export async function createAsaasCharge({
   const calculatedFee = finalValue - value;
   const asaasCustomerId = await getOrCreateCustomer(customer, subAccountApiKey);
 
-  // Payload Tipado corretamente sem 'any'
+  // Payload Tipado corretamente sem 'any' e sem o objeto callback
   const chargePayload: AsaasChargePayload = {
     customer: asaasCustomerId,
     billingType: method,
@@ -229,10 +225,6 @@ export async function createAsaasCharge({
     externalReference,
     //notificationDisabled: true,
     postalService: false,
-    callback: {
-      successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/${slug}/sucesso`,
-      autoRedirect: true
-    },
     split: [
       {
         walletId: process.env.ASAAS_PLATFORM_WALLET_ID, 
