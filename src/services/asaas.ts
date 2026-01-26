@@ -132,6 +132,7 @@ export async function createAsaasSubAccount(
   try {
     const { data } = await api.post("/accounts", {
       ...subAccountData,
+      site: "https://bemcasadosapp.com.br",
       incomeValue: subAccountData.incomeValue || 5000,
       webhooks: [
         {
