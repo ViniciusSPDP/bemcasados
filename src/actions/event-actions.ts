@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { uploadFileToS3 } from "@/lib/s3"
 import { verifySession } from "@/lib/dal"
 import { revalidatePath } from "next/cache"
-import { createAsaasSubAccount, getAsaasBalance, getAsaasOnboardingLink, transferAsaasBalance } from "@/services/asaas"
+import { createAsaasSubAccount, getAsaasBalance, getAsaasOnboardingLink, isAsaasAccountApproved, transferAsaasBalance } from "@/services/asaas"
 
 // Definição de tipo para o estado da Action
 interface ActionState {
@@ -243,4 +243,24 @@ export async function requestWithdrawalAction(): Promise<ActionState> {
     } catch {
         return { success: false, message: "Falha ao processar o saque." };
     }
+}
+
+export async function checkAndVerifyEvent(eventId: string, asaasApiKey: string) {
+  const session = await verifySession();
+  
+  // 1. Consulta o Asaas em tempo real
+  const approvedOnAsaas = await isAsaasAccountApproved(asaasApiKey);
+
+  if (approvedOnAsaas) {
+    // 2. Se aprovado, salva no banco de dados local
+    await prisma.event.update({
+      where: { id: eventId, userId: session.userId },
+      data: { isApproved: true }
+    });
+    
+    revalidatePath("/admin");
+    return { success: true, message: "Conta verificada e liberada!" };
+  }
+
+  return { success: false, message: "A conta ainda consta como pendente no Asaas." };
 }
