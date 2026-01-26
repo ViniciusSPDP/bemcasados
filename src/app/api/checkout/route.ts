@@ -51,7 +51,7 @@ export async function POST(req: Request) {
         }
 
         // 2. Chamada ao Asaas para criar a cobrança
-        // Se for cartão, passamos os objetos creditCard e creditCardHolderInfo
+        // PASSAMOS O SLUG vindo do banco de dados (gift.event.slug)
         const asaasResponse = await createAsaasCharge({
             customer: {
                 name: data.guestName,
@@ -65,6 +65,7 @@ export async function POST(req: Request) {
             installmentCount: data.installments,
             subAccountApiKey: gift.event.asaasApiKey,
             remoteIp,
+            slug: gift.event.slug, // <--- CORREÇÃO: Passando o slug obrigatório
             // Só envia se for cartão
             ...(data.paymentMethod === "CREDIT_CARD" && data.creditCard && {
                 creditCard: data.creditCard,
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
                     name: data.guestName,
                     email: data.guestEmail,
                     cpfCnpj: data.guestCPFCNPJ,
-                    postalCode: "01310100", // CEP genérico se não tiver no form
+                    postalCode: "01310100", // CEP genérico
                     addressNumber: "SN",
                     mobilePhone: "11999999999"
                 }
@@ -112,7 +113,7 @@ export async function POST(req: Request) {
             success: true,
             transactionId: transaction.id,
             paymentMethod: data.paymentMethod,
-            status: transaction.status, // Útil para Cartão (se já aprovou na hora)
+            status: transaction.status,
             paymentUrl: asaasResponse.invoiceUrl,
             pix: data.paymentMethod === "PIX" ? extraInfo : null,
             boleto: data.paymentMethod === "BOLETO" ? extraInfo : null,
@@ -120,10 +121,7 @@ export async function POST(req: Request) {
 
     } catch (error: unknown) { 
         console.error("Erro no checkout:", error);
-        
-        // Repassa o erro amigável do Asaas (ex: cartão recusado)
         const errorMessage = error instanceof Error ? error.message : "Erro interno ao processar pagamento.";
-        
         return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }

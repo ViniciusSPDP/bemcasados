@@ -41,8 +41,6 @@ interface AsaasStatusResponse {
   general: string;
 }
 
-// Interfaces removidas (AsaasDocument) pois não buscaremos links White Label
-
 // --- TIPAGENS PARA CARTÃO DE CRÉDITO ---
 
 interface CreditCardInfo {
@@ -72,6 +70,32 @@ interface CreateChargeParams {
   externalReference: string;
   installmentCount?: number;
   subAccountApiKey: string;
+  creditCard?: CreditCardInfo;
+  creditCardHolderInfo?: CreditCardHolderInfo;
+  remoteIp?: string;
+  slug: string; 
+}
+
+// Interface para evitar o erro de 'any'
+interface AsaasChargePayload {
+  customer: string;
+  billingType: PaymentMethod;
+  dueDate: string;
+  value?: number;          // Usado em 1x
+  totalValue?: number;     // Usado em parcelados
+  installmentCount?: number;
+  description: string;
+  externalReference: string;
+  //notificationDisabled: boolean;
+  postalService: boolean;
+  callback: {
+    successUrl: string;
+    autoRedirect: boolean;
+  };
+  split: Array<{
+    walletId: string | undefined;
+    percentualValue: number;
+  }>;
   creditCard?: CreditCardInfo;
   creditCardHolderInfo?: CreditCardHolderInfo;
   remoteIp?: string;
@@ -150,15 +174,24 @@ async function getOrCreateCustomer(data: CustomerData, subAccountApiKey: string)
 
   try {
     const { data: search } = await api.get(`/customers?cpfCnpj=${cleanCpfCnpj}`, { headers });
+    
     if (search.data && search.data.length > 0) {
-      return search.data[0].id;
+      const customerId = search.data[0].id;
+      
+      await api.post(`/customers/${customerId}`, {
+        notificationDisabled: true
+      }, { headers });
+
+      return customerId;
     }
 
     const { data: newCustomer } = await api.post("/customers", {
       name: data.name,
       cpfCnpj: cleanCpfCnpj,
       email: data.email,
+      notificationDisabled: true,
     }, { headers });
+
     return newCustomer.id;
   } catch (error: unknown) {
     console.error("Erro ao gerenciar cliente no ASAAS:", error);
@@ -178,20 +211,27 @@ export async function createAsaasCharge({
   subAccountApiKey,
   creditCard,
   creditCardHolderInfo,
-  remoteIp
+  remoteIp,
+  slug
 }: CreateChargeParams): Promise<ChargeResponse> {
   
   const finalValue = calculateTotalWithFees(value, method, installmentCount);
   const calculatedFee = finalValue - value;
   const asaasCustomerId = await getOrCreateCustomer(customer, subAccountApiKey);
 
-  const chargePayload = {
+  // Payload Tipado corretamente sem 'any'
+  const chargePayload: AsaasChargePayload = {
     customer: asaasCustomerId,
     billingType: method,
     dueDate: new Date().toISOString().split("T")[0],
     description,
     externalReference,
+    //notificationDisabled: true,
     postalService: false,
+    callback: {
+      successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/${slug}/sucesso`,
+      autoRedirect: true
+    },
     split: [
       {
         walletId: process.env.ASAAS_PLATFORM_WALLET_ID, 
@@ -327,7 +367,6 @@ export async function getAsaasOnboardingLink(subAccountApiKey: string): Promise<
         throw new Error("Sua conta já está totalmente aprovada!");
     }
 
-    // No modo padrão, o usuário deve usar o e-mail de boas-vindas enviado pelo Asaas
     throw new Error("Acesse o e-mail enviado pelo Asaas para definir sua senha e enviar seus documentos pelo painel oficial.");
 
   } catch (error: unknown) {
@@ -341,7 +380,6 @@ export async function isAsaasAccountApproved(subAccountApiKey: string): Promise<
     const { data } = await api.get<AsaasStatusResponse>("/myAccount/status", {
       headers: { access_token: subAccountApiKey }
     });
-    // O PIX e saques só funcionam quando 'general' é 'APPROVED'
     return data.general === "APPROVED";
   } catch {
     return false;
