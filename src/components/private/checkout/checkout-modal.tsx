@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useForm, UseFormRegister } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { X, Loader2, CreditCard, Barcode, QrCode, Copy, CheckCircle2, ArrowLeft, ExternalLink, ShieldCheck } from "lucide-react";
+import { X, Loader2, CreditCard, Barcode, QrCode, Copy, CheckCircle2, ArrowLeft, ExternalLink, ShieldCheck, ChevronDown } from "lucide-react";
 import { calculateTotalWithFees } from "@/lib/fees";
 import { toast } from "sonner";
 import { useRouter, useParams } from "next/navigation";
@@ -33,7 +33,6 @@ interface checkoutModalProps {
     gift: { id: string; title: string; price: number; } | null;
 }
 
-// Interface corrigida para as opções de pagamento
 interface PaymentOptionProps {
     value: "CREDIT_CARD" | "BOLETO" | "PIX";
     register: UseFormRegister<CheckoutFormData>;
@@ -111,7 +110,7 @@ export function CheckoutModal({ isOpen, onClose, gift }: checkoutModalProps) {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
             <div className="bg-white rounded-t-[2rem] sm:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in slide-in-from-bottom-full duration-300 max-h-[90vh] flex flex-col">
                 
                 {!pixData && !boletoData && (
@@ -137,7 +136,7 @@ export function CheckoutModal({ isOpen, onClose, gift }: checkoutModalProps) {
                     <button onClick={onClose} className="p-2 bg-gray-50 text-gray-400 rounded-full"><X size={18} /></button>
                 </div>
 
-                <div className="overflow-y-auto flex-1 px-6 py-4">
+                <div className="overflow-y-auto flex-1 px-6 py-4 custom-scrollbar">
                     {!pixData && !boletoData ? (
                         <div className="space-y-5 pb-6">
                             {step === 1 ? (
@@ -163,7 +162,7 @@ export function CheckoutModal({ isOpen, onClose, gift }: checkoutModalProps) {
                                         <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Mensagem (Opcional)</label>
                                         <textarea {...register("message")} rows={2} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none text-sm resize-none" placeholder="Felicidades ao casal!" />
                                     </div>
-                                    <button onClick={handleNextStep} className="w-full h-14 bg-rose-500 text-white font-bold rounded-2xl shadow-lg shadow-rose-100 flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
+                                    <button onClick={handleNextStep} className="w-full h-14 bg-rose-500 text-white font-bold rounded-2xl shadow-lg shadow-rose-100 flex items-center justify-center gap-2 active:scale-[0.98] transition-all mt-4">
                                         Próximo: Pagamento <ArrowLeft size={18} className="rotate-180" />
                                     </button>
                                 </div>
@@ -175,13 +174,31 @@ export function CheckoutModal({ isOpen, onClose, gift }: checkoutModalProps) {
                                         <PaymentOption value="CREDIT_CARD" register={register} current={selectedMethod} icon={<CreditCard size={18} />} label="Cartão" />
                                     </div>
 
+                                    {/* CARTÃO DE CRÉDITO - CAMPOS CORRIGIDOS */}
                                     {selectedMethod === "CREDIT_CARD" && (
                                         <div className="p-4 bg-gray-900 rounded-2xl space-y-3 shadow-xl">
-                                            <input {...register("creditCard.number")} className="w-full h-11 px-3 bg-white/10 border border-white/20 rounded-lg text-white text-sm placeholder:text-gray-500 outline-none focus:ring-1 focus:ring-rose-500" placeholder="Número do Cartão" />
+                                            <input {...register("creditCard.holderName")} className="w-full h-11 px-3 bg-white/10 border border-white/20 rounded-lg text-white text-sm placeholder:text-gray-500 outline-none focus:ring-1 focus:ring-rose-500" placeholder="Nome no Cartão" />
+                                            <input {...register("creditCard.number")} className="w-full h-11 px-3 bg-white/10 border border-white/20 rounded-lg text-white text-sm placeholder:text-gray-500 outline-none focus:ring-1 focus:ring-rose-500" placeholder="0000 0000 0000 0000" />
                                             <div className="grid grid-cols-3 gap-2">
                                                 <input {...register("creditCard.expiryMonth")} maxLength={2} className="h-11 text-center bg-white/10 border border-white/20 rounded-lg text-white text-sm" placeholder="MM" />
                                                 <input {...register("creditCard.expiryYear")} maxLength={4} className="h-11 text-center bg-white/10 border border-white/20 rounded-lg text-white text-sm" placeholder="AAAA" />
                                                 <input {...register("creditCard.ccv")} maxLength={4} className="h-11 text-center bg-white/10 border border-white/20 rounded-lg text-white text-sm" placeholder="CVV" />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* PARCELAMENTO VOLTOU AQUI */}
+                                    {(selectedMethod === "CREDIT_CARD" || selectedMethod === "BOLETO") && (
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Parcelamento</label>
+                                            <div className="relative">
+                                                <select {...register("installments", { valueAsNumber: true })} className="w-full h-12 pl-4 pr-10 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none text-sm font-bold text-gray-700 appearance-none">
+                                                    <option value={1}>À vista</option>
+                                                    {[2,3,4,5,6,7,8,9,10,11,12].map(i => (
+                                                        <option key={i} value={i}>{i}x (com taxas)</option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                                             </div>
                                         </div>
                                     )}
@@ -196,12 +213,12 @@ export function CheckoutModal({ isOpen, onClose, gift }: checkoutModalProps) {
                                         {selectedInstallments > 1 && (
                                             <div className="text-right">
                                                 <p className="text-[10px] font-bold text-rose-400 uppercase">Parcelas</p>
-                                                <p className="text-sm font-bold text-rose-800">{selectedInstallments}x {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(installmentValue)}</p>
+                                                <p className="text-sm font-black text-rose-800">{selectedInstallments}x {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(installmentValue)}</p>
                                             </div>
                                         )}
                                     </div>
 
-                                    <button onClick={handleSubmit(onSubmit)} disabled={isLoading} className="w-full h-14 bg-gray-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 shadow-xl active:scale-[0.98] transition-transform disabled:opacity-50">
+                                    <button onClick={handleSubmit(onSubmit)} disabled={isLoading} className="w-full h-14 bg-gray-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 shadow-xl active:scale-[0.98] transition-transform disabled:opacity-50 mt-2">
                                         {isLoading ? <Loader2 className="animate-spin" /> : <><ShieldCheck size={18} /> Confirmar Presente</>}
                                     </button>
                                 </div>
@@ -244,7 +261,6 @@ export function CheckoutModal({ isOpen, onClose, gift }: checkoutModalProps) {
     );
 }
 
-// Função tipada corretamente para evitar o erro de 'any'
 function PaymentOption({ value, register, current, icon, label }: PaymentOptionProps) {
     return (
         <label className={`cursor-pointer border-2 rounded-xl p-3 flex flex-col items-center justify-center gap-1.5 transition-all ${current === value ? "border-rose-500 bg-rose-50 text-rose-600 shadow-sm" : "border-gray-50 bg-gray-50 text-gray-400"}`}>
