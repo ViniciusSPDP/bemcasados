@@ -104,9 +104,11 @@ export default async function AdminPage() {
     include: { gift: true },
   });
   const gifts = await prisma.gift.findMany({
-    where: { eventId: event.id },
-    orderBy: { createdAt: "desc" },
-  });
+  where: {
+    eventId: event.id,
+    deletedAt: null // Garante que presentes "excluídos" não apareçam
+  }
+});
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);

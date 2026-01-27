@@ -100,22 +100,29 @@ export async function createGift(formData: FormData) {
 }
 
 export async function deleteGift(id: string) {
-    const session = await verifySession();
+    const session = await verifySession(); //
 
+    // 1. Verificar se o presente existe e pertence ao usuário
     const gift = await prisma.gift.findUnique({
         where: { id },
         include: { event: true },
     });
 
-    if (gift && gift.event.userId === session.userId) {
-        await prisma.gift.delete({
-            where: { id },
-        });
-        revalidatePath("/admin");
-        revalidatePath(`/${gift.event.slug}`);
-        revalidatePath(`/${gift.event.slug}/presentes`);
-        return;
-    } else {
-        throw new Error("Não autorizado.");
+    if (!gift || gift.event.userId !== session.userId) {
+        throw new Error("Não autorizado ou presente não encontrado.");
     }
+
+    // 2. Executar o Soft Delete (Apenas marca o campo deletedAt)
+    await prisma.gift.update({
+        where: { id },
+        data: { 
+            deletedAt: new Date() 
+        },
+    });
+
+    // 3. Revalidar os caminhos para atualizar a UI
+    revalidatePath("/admin");
+    revalidatePath(`/${gift.event.slug}`);
+    revalidatePath(`/${gift.event.slug}/presentes`);
+    
 }
