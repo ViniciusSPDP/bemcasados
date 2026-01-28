@@ -31,6 +31,7 @@ import {
   Clock,
   MailCheck,
   Layers} from "lucide-react";
+import { ShareEvent } from "@/components/private/admin/share-event";
 
 export const dynamic = "force-dynamic";
 
@@ -201,6 +202,7 @@ export default async function AdminPage() {
               </div>
 
               <div className="lg:col-span-5 space-y-6">
+                <ShareEvent slug={event.slug} coupleName={event.coupleName} />
                 <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
                   <div className="p-6 border-b border-gray-50 flex justify-between items-center">
                     <h2 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">

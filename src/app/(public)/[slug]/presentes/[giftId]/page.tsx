@@ -10,10 +10,15 @@ export default async function GiftPage({ params }: { params: Promise<{ slug: str
     const { slug, giftId } = await params;
 
     const gift = await prisma.gift.findUnique({
-        where: { id: giftId },
+        where: { 
+            id: giftId,
+            // FILTRO ESSENCIAL: Impede o acesso se o presente foi deletado (Soft Delete)
+            deletedAt: null 
+        },
         include: { event: true }
     });
 
+    // Validamos se o presente existe, se não foi deletado e se pertence ao evento correto
     if (!gift || gift.event.slug !== slug) return notFound();
 
     const isSoldOut = !gift.available && gift.isExclusive;
@@ -43,7 +48,7 @@ export default async function GiftPage({ params }: { params: Promise<{ slug: str
             <main className="max-w-6xl mx-auto px-4 py-8 md:py-16">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-start">
                     
-                    {/* COLUNA ESQUERDA: IMAGEM 1:1 */}
+                    {/* COLUNA ESQUERDA: IMAGEM */}
                     <div className="relative group">
                         <div className="aspect-square relative rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl shadow-rose-100 border border-gray-50 bg-gray-50">
                             {gift.imageUrl ? (
@@ -56,7 +61,7 @@ export default async function GiftPage({ params }: { params: Promise<{ slug: str
                                     priority 
                                 />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-300 italic">Sem imagem</div>
+                                <div className="w-full h-full flex items-center justify-center text-gray-300 italic text-xs uppercase font-black tracking-widest">Sem imagem</div>
                             )}
                             
                             {isSoldOut && (
