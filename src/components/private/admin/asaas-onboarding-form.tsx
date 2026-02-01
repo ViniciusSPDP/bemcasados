@@ -1,148 +1,77 @@
+// src/components/private/admin/asaas-onboarding-form.tsx
 "use client";
 
 import { useActionState } from "react";
-import { setupAsaasAction } from "@/actions/event-actions";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { CreditCard, MapPin, Loader2 } from "lucide-react";
+import { connectAsaasAccountAction } from "@/actions/event-actions"; // Nova action
+import { Loader2, Key, Wallet, AlertTriangle } from "lucide-react";
+
+const initialState = {
+  success: false,
+  message: "",
+};
 
 export function AsaasOnboardingForm() {
-  const [state, action, isPending] = useActionState(
-    setupAsaasAction,
-    undefined,
-  );
+  const [state, formAction, isPending] = useActionState(connectAsaasAccountAction, initialState);
 
   return (
-    <form action={action} className="space-y-6">
-      <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex gap-3 items-start">
-        <CreditCard className="text-blue-600 shrink-0 mt-1" size={20} />
-        <p className="text-sm text-blue-800">
-          <strong>Configuração de Recebimento:</strong> Os presentes pagos pelos convidados caem direto na sua conta.
-          Precisamos desses dados para criar sua carteira digital segura.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="cpfCnpj">CPF ou CNPJ</Label>
-          <Input
-            id="cpfCnpj"
-            name="cpfCnpj"
-            placeholder="000.000.000-00"
-            defaultValue={state?.fields?.cpfCnpj}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="mobilePhone">Celular (com DDD)</Label>
-          <Input
-            id="mobilePhone"
-            name="mobilePhone"
-            placeholder="11999999999"
-            defaultValue={state?.fields?.mobilePhone}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="incomeValue">Faturamento Mensal Estimado</Label>
-          <Input
-            id="incomeValue"
-            name="incomeValue"
-            type="number"
-            placeholder="5000"
-            defaultValue={state?.fields?.incomeValue}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="postalCode">CEP</Label>
-          <Input
-            id="postalCode"
-            name="postalCode"
-            placeholder="00000-000"
-            defaultValue={state?.fields?.postalCode}
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="birthDate">Data de Nascimento</Label>
-          <Input 
-            id="birthDate" 
-            name="birthDate" 
-            type="date" 
-            defaultValue={state?.fields?.birthDate}
-            required 
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="asaasEmail">E-mail para Recebimento</Label>
-          <Input
-            id="asaasEmail"
-            name="asaasEmail"
-            type="email"
-            placeholder="email@financeiro.com"
-            defaultValue={state?.fields?.asaasEmail}
-            required
-          />
+    <div className="space-y-6">
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3 items-start text-amber-800">
+        <AlertTriangle className="shrink-0 mt-0.5" size={18} />
+        <div className="text-sm">
+          <p className="font-bold">Fila de Espera Ativa</p>
+          <p>No momento, estamos aceitando apenas usuários que já possuem conta aprovada no Asaas.</p>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <h4 className="font-bold text-gray-800 flex items-center gap-2 border-b pb-2">
-          <MapPin size={18} /> Endereço Residencial/Comercial
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2 space-y-2">
-            <Label htmlFor="address">Logradouro</Label>
-            <Input
-              id="address"
-              name="address"
-              placeholder="Rua, Av..."
-              defaultValue={state?.fields?.address}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="addressNumber">Número</Label>
-            <Input 
-              id="addressNumber" 
-              name="addressNumber" 
-              defaultValue={state?.fields?.addressNumber}
-              required 
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="province">Bairro</Label>
-            <Input 
-              id="province" 
-              name="province" 
-              defaultValue={state?.fields?.province}
-              required 
-            />
-          </div>
+      <form action={formAction} className="space-y-4">
+        
+        <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-500 uppercase ml-1">Asaas API Key</label>
+            <div className="relative">
+                <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input 
+                    name="apiKey" 
+                    type="password"
+                    required
+                    placeholder="$aact_..." 
+                    className="w-full h-12 pl-12 pr-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none text-sm font-mono"
+                />
+            </div>
+            <p className="text-[10px] text-gray-400 ml-1">Disponível em: Minha Conta &gt; Integrações</p>
         </div>
+
+        <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-500 uppercase ml-1">Wallet ID (ID da Carteira)</label>
+            <div className="relative">
+                <Wallet className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input 
+                    name="walletId" 
+                    type="text"
+                    required
+                    placeholder="Ex: 60f..." 
+                    className="w-full h-12 pl-12 pr-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none text-sm font-mono"
+                />
+            </div>
+        </div>
+
+        {state?.message && (
+          <p className={`text-sm font-medium text-center ${state.success ? "text-emerald-600" : "text-red-500"}`}>
+            {state.message}
+          </p>
+        )}
+
+        <button
+          disabled={isPending}
+          className="w-full h-14 bg-gray-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+        >
+          {isPending ? <Loader2 className="animate-spin" /> : "Conectar Conta Asaas"}
+        </button>
+      </form>
+      
+      <div className="text-center pt-4">
+          <p className="text-xs text-gray-400">Não tem conta no Asaas?</p>
+          <a href="https://www.asaas.com/" target="_blank" className="text-rose-600 font-bold text-xs hover:underline">Criar conta gratuitamente</a>
       </div>
-
-      {state?.message && (
-        <div className={`p-3 rounded-lg text-sm font-medium ${state.success ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
-          {state.message}
-        </div>
-      )}
-
-      <Button
-        disabled={isPending}
-        type="submit"
-        className="w-full bg-rose-600 hover:bg-rose-700 h-12 text-white font-bold transition-all active:scale-[0.98]"
-      >
-        {isPending ? (
-          <span className="flex items-center gap-2">
-            <Loader2 className="animate-spin" size={20} /> Configurando conta...
-          </span>
-        ) : "Ativar Recebimento e Começar"}
-      </Button>
-    </form>
+    </div>
   );
 }

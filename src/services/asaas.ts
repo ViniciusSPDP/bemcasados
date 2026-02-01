@@ -397,4 +397,16 @@ export async function updateAsaasBankAccount(
   }
 }
 
+export async function validateAsaasCredentials(apiKey: string): Promise<boolean> {
+  try {
+    // Tenta buscar o saldo para validar a chave
+    await api.get("/finance/balance", {
+      headers: { access_token: apiKey }
+    });
+    return true;
+  } catch  {
+    return false;
+  }
+}
+
 export { calculateTotalWithFees, type PaymentMethod };

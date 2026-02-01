@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { uploadFileToS3 } from "@/lib/s3"
 import { verifySession } from "@/lib/dal"
 import { revalidatePath } from "next/cache"
-import { createAsaasSubAccount, getAsaasBalance, getAsaasOnboardingLink, isAsaasAccountApproved, transferAsaasBalance } from "@/services/asaas"
+import { createAsaasSubAccount, getAsaasBalance, getAsaasOnboardingLink, isAsaasAccountApproved, transferAsaasBalance, validateAsaasCredentials } from "@/services/asaas"
 
 // Definição de tipo para o estado da Action
 interface ActionState {
@@ -263,4 +263,49 @@ export async function checkAndVerifyEvent(eventId: string, asaasApiKey: string) 
   }
 
   return { success: false, message: "A conta ainda consta como pendente no Asaas." };
+}
+
+
+export async function connectAsaasAccountAction(
+    _prevState: ActionState | undefined,  // <--- CORREÇÃO: troque 'any' por 'ActionState | undefined'
+    formData: FormData
+): Promise<ActionState> { // <--- Recomendado: Tipar o retorno também
+    const session = await verifySession();
+    
+    const apiKey = formData.get("apiKey") as string;
+    const walletId = formData.get("walletId") as string;
+
+    if (!apiKey || !walletId) {
+        return { success: false, message: "Todos os campos são obrigatórios." };
+    }
+
+    // 1. Validar se a chave funciona no Asaas
+    const isValid = await validateAsaasCredentials(apiKey);
+    if (!isValid) {
+        return { success: false, message: "A API Key informada é inválida ou não tem permissões." };
+    }
+
+    // 2. Salvar no banco
+    try {
+        const event = await prisma.event.findFirst({ 
+            where: { userId: session.userId } 
+        });
+
+        if (!event) throw new Error("Evento não encontrado");
+
+        await prisma.event.update({
+            where: { id: event.id },
+            data: {
+                asaasApiKey: apiKey,
+                walletId: walletId,
+                isApproved: true 
+            }
+        });
+
+        revalidatePath("/admin");
+        return { success: true, message: "Conta conectada com sucesso!" };
+
+    } catch  {
+        return { success: false, message: "Erro ao salvar credenciais." };
+    }
 }

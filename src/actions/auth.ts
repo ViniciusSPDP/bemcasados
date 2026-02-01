@@ -26,15 +26,17 @@ export async function authenticate(
 }
 
 export async function signup(prevState: FormState, formData: FormData) {
-    // Captura os dados brutos para retornar ao formulário em caso de erro
+    // 1. Captura o phone do FormData
     const rawData = {
         name: formData.get('name') as string,
         email: formData.get('email') as string,
+        phone: formData.get('phone') as string, // <--- NOVO
         eventName: formData.get('eventName') as string,
         slug: formData.get('slug') as string,
         eventDate: formData.get('eventDate') as string,
     }
 
+    // 2. Valida incluindo o phone
     const validatedFields = SignupFormSchema.safeParse({
         ...rawData,
         password: formData.get('password'),
@@ -44,11 +46,12 @@ export async function signup(prevState: FormState, formData: FormData) {
         return {
             error: validatedFields.error.flatten().fieldErrors,
             message: 'Formulário inválido',
-            fields: rawData // Retorna os campos preenchidos
+            fields: rawData 
         }
     }
 
-    const { name, email, password, eventName, slug, eventDate } = validatedFields.data
+    // 3. Desestrutura o phone dos dados validados
+    const { name, email, phone, password, eventName, slug, eventDate } = validatedFields.data
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10)
@@ -64,10 +67,12 @@ export async function signup(prevState: FormState, formData: FormData) {
         if (existingSlug) return { message: 'Este link personalizado já está em uso.', fields: rawData }
 
         await prisma.$transaction(async (tx) => {
+            // 4. Salva o phone no banco de dados
             const user = await tx.user.create({
                 data: {
                     name,
                     email,
+                    phone, // <--- SALVANDO NO BANCO
                     password: hashedPassword,
                 },
             })
@@ -111,7 +116,7 @@ export async function loginAction(
         return {
             error: validatedFields.error.flatten().fieldErrors,
             message: 'Campos inválidos',
-            fields: { email: data.email as string } // Retorna apenas o email no login por segurança
+            fields: { email: data.email as string } 
         }
     }
     

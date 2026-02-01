@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useActionState } from "react"
 import { motion, Variants } from "framer-motion" 
-import { User, Mail, Lock, Heart, Calendar, Link as LinkIcon, Sparkles } from "lucide-react" 
+// Adicionei o ícone 'Phone' na importação
+import { User, Mail, Lock, Heart, Calendar, Link as LinkIcon, Sparkles, Phone } from "lucide-react" 
 
 export default function RegisterPage() {
     // O state agora contém 'fields' que são os valores digitados anteriormente
@@ -75,7 +76,6 @@ export default function RegisterPage() {
                                     id="name" 
                                     name="name" 
                                     placeholder="Ex: Ana e Pedro" 
-                                    // Adicionado defaultValue para manter o valor
                                     defaultValue={state?.fields?.name}
                                     className="pl-10 h-12 rounded-xl border-gray-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 bg-gray-50/50 hover:bg-white transition-colors"
                                 />
@@ -92,13 +92,30 @@ export default function RegisterPage() {
                                     name="email" 
                                     type="email" 
                                     placeholder="email@exemplo.com" 
-                                    // Adicionado defaultValue para manter o valor
                                     defaultValue={state?.fields?.email}
                                     className="pl-10 h-12 rounded-xl border-gray-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 bg-gray-50/50 hover:bg-white transition-colors"
                                 />
                             </div>
                             {state?.error?.email && <p className="text-xs text-rose-500 mt-1 ml-1 font-medium">{state.error.email}</p>}
                         </motion.div>
+
+                        {/* --- NOVO CAMPO DE TELEFONE --- */}
+                        <motion.div variants={itemVariants}>
+                            <Label htmlFor="phone" className="text-gray-700 font-medium ml-1">WhatsApp / Celular</Label>
+                            <div className="relative mt-1.5">
+                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
+                                <Input 
+                                    id="phone" 
+                                    name="phone" 
+                                    type="tel" 
+                                    placeholder="(11) 99999-9999" 
+                                    defaultValue={state?.fields?.phone}
+                                    className="pl-10 h-12 rounded-xl border-gray-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 bg-gray-50/50 hover:bg-white transition-colors"
+                                />
+                            </div>
+                            {state?.error?.phone && <p className="text-xs text-rose-500 mt-1 ml-1 font-medium">{state.error.phone}</p>}
+                        </motion.div>
+                        {/* ------------------------------- */}
 
                         <motion.div variants={itemVariants}>
                             <Label htmlFor="password" className="text-gray-700 font-medium ml-1">Senha</Label>
@@ -139,7 +156,6 @@ export default function RegisterPage() {
                                     id="eventName" 
                                     name="eventName" 
                                     placeholder="Casamento Ana e Pedro" 
-                                    // Adicionado defaultValue para manter o valor
                                     defaultValue={state?.fields?.eventName}
                                     className="pl-10 h-12 rounded-xl border-gray-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 bg-gray-50/50 hover:bg-white transition-colors"
                                 />
@@ -157,7 +173,6 @@ export default function RegisterPage() {
                                     id="slug" 
                                     name="slug" 
                                     placeholder="ana-e-pedro" 
-                                    // Adicionado defaultValue para manter o valor
                                     defaultValue={state?.fields?.slug}
                                     className="rounded-l-none rounded-r-xl h-12 border-gray-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 bg-white"
                                 />
@@ -173,7 +188,6 @@ export default function RegisterPage() {
                                     id="eventDate" 
                                     name="eventDate" 
                                     type="date" 
-                                    // Adicionado defaultValue para manter o valor
                                     defaultValue={state?.fields?.eventDate}
                                     className="pl-10 h-12 rounded-xl border-gray-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 bg-gray-50/50 hover:bg-white transition-colors"
                                 />
