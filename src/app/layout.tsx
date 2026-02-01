@@ -27,11 +27,9 @@ export const metadata: Metadata = {
   authors: [{ name: "BemCasados Team" }],
   creator: "BemCasados",
   
-  icons: {
-    icon: "/icon.svg", 
-    shortcut: "/icon.svg",
-    apple: "/icon.svg", 
-  },
+  // --- REMOVI O BLOCO ICONS DAQUI ---
+  // O Next.js vai procurar automaticamente por icon.png e apple-icon.png na pasta /app
+  // Isso garante compatibilidade total com iPhone e Android.
 
   // Configuração para WhatsApp, Facebook e Redes Sociais
   openGraph: {
@@ -43,7 +41,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/opengraph-image.jpg", // Atualizado para o novo arquivo
+        url: "/opengraph-image.jpg",
         width: 1200,
         height: 630,
         alt: "BemCasados Preview",
@@ -56,7 +54,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "BemCasados",
     description: "Sua lista de presentes inteligente.",
-    images: ["/opengraph-image.jpg"], // Atualizado para o novo arquivo
+    images: ["/opengraph-image.jpg"],
   },
 };
 
