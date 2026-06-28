@@ -17,7 +17,11 @@ const nextConfig: NextConfig = {
     protocol: "https",
     hostname: "minio.s4r41va.com",
     pathname: "/bem-casados-bucket/**",
-  }
+  },
+            {
+        protocol: "https",
+        hostname: "placehold.co",
+      }
     ],
   },
 };
