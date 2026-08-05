@@ -6,7 +6,10 @@ FROM node:22.12.0-alpine AS deps
 RUN apk add --no-cache openssl
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@11.5.2 --activate
+# Instalado via npm, e não por corepack: o corepack que vem nesta imagem tem as
+# chaves de assinatura do registry desatualizadas e falha com
+# "Cannot find matching keyid" ao validar o pacote do pnpm.
+RUN npm install -g pnpm@11.5.2
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
@@ -16,7 +19,10 @@ FROM node:22.12.0-alpine AS builder
 RUN apk add --no-cache openssl
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@11.5.2 --activate
+# Instalado via npm, e não por corepack: o corepack que vem nesta imagem tem as
+# chaves de assinatura do registry desatualizadas e falha com
+# "Cannot find matching keyid" ao validar o pacote do pnpm.
+RUN npm install -g pnpm@11.5.2
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
