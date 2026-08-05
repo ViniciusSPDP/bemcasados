@@ -25,6 +25,16 @@ const api = axios.create({
   },
 });
 
+/**
+ * Consulta o pagamento direto na API. O webhook não é fonte da verdade — quem
+ * tiver o token consegue anunciar qualquer status, então o valor e o estado são
+ * reconferidos aqui antes de liberar o presente.
+ */
+export async function getAsaasPayment(paymentId: string) {
+  const { data } = await api.get(`/payments/${encodeURIComponent(paymentId)}`);
+  return data as { id: string; status: string; value: number; externalReference?: string };
+}
+
 async function getOrCreateCustomer(data: CustomerData) {
   const cleanCpfCnpj = data.cpfCnpj.replace(/\D/g, "");
 

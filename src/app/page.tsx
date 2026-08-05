@@ -80,8 +80,16 @@ export default function LandingPage() {
 
       {/* FOOTER */}
       <footer className="bg-gray-50 py-12 border-t">
-        <div className="max-w-6xl mx-auto px-6 text-center text-gray-500 text-sm">
+        <div className="max-w-6xl mx-auto px-6 text-center text-gray-500 text-sm space-y-3">
           <p>&copy; {new Date().getFullYear()} BemCasados. Feito com amor.</p>
+          <nav className="flex items-center justify-center gap-6">
+            <Link href="/politica-de-privacidade" className="hover:text-gray-800 transition-colors">
+              Política de Privacidade
+            </Link>
+            <Link href="/termos-de-uso" className="hover:text-gray-800 transition-colors">
+              Termos de Uso
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>

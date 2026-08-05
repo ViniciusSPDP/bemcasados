@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Trava regressão de dependência: qualquer nova vulnerabilidade alta ou
+      # crítica reprova o build.
+      - name: Auditoria de dependências
+        run: pnpm audit --audit-level=high --prod
+
+      - run: pnpm prisma generate
+
+      - run: pnpm lint
+
+      - run: pnpm test
+
+      - run: pnpm build
+        env:
+          # Valores fictícios: o build só precisa que as variáveis existam.
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          AUTH_SECRET: ci-build-secret-nao-usado-em-runtime

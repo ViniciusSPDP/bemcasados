@@ -1,97 +1,144 @@
 'use server'
 
 import { prisma } from "@/lib/prisma"
-import { uploadFileToS3 } from "@/lib/s3"
+import { uploadFileToS3, UploadValidationError } from "@/lib/s3"
 import { verifySession } from "@/lib/dal"
+import { UpdateEventSettingsSchema } from "@/lib/definitions"
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit"
 import { revalidatePath } from "next/cache"
+import type { ActionResult } from "@/actions/gift-actions"
 
-export async function updateEventSettings(formData: FormData) {
+const MAX_GALLERY_ITEMS = 10
+
+/**
+ * Erros de validação são retornados, não lançados: em produção o Next troca a
+ * mensagem de uma exceção de Server Action por um digest genérico.
+ */
+export async function updateEventSettings(formData: FormData): Promise<ActionResult> {
   const session = await verifySession()
+
+  try {
+    await enforceRateLimit({
+      key: `event:update:${session.userId}`,
+      limit: 30,
+      windowSeconds: 60 * 60,
+      message: "Muitas alterações em pouco tempo. Tente novamente mais tarde.",
+    })
+  } catch (error) {
+    if (error instanceof RateLimitError) return { success: false, message: error.message }
+    throw error
+  }
 
   const event = await prisma.event.findFirst({
     where: { userId: session.userId },
+    select: { id: true, slug: true },
   })
 
   if (!event) {
-    throw new Error("Evento não encontrado")
+    return { success: false, message: "Evento não encontrado." }
   }
 
-  // 1. Coleta campos de texto gerais
-  const introTitle = formData.get("introTitle") as string
-  const introSubtitle = formData.get("introSubtitle") as string
-  const welcomeMessage = formData.get("welcomeMessage") as string
-  const videoUrl = formData.get("videoUrl") as string
-  
-  // 2. Processamento da Galeria
-  // O frontend vai mandar arrays paralelos: keptUrls[] com keptCaptions[], e newFiles[] com newCaptions[]
-  
-  const keptUrls = formData.getAll("keptUrls") as string[];
-  const keptCaptions = formData.getAll("keptCaptions") as string[];
-  
-  const newFiles = formData.getAll("newFiles");
-  const newCaptions = formData.getAll("newCaptions") as string[];
-  
+  // 1. Campos de texto — validados e com limite de tamanho
+  const keptCaptions = formData.getAll("keptCaptions").map(String)
+  const newCaptions = formData.getAll("newCaptions").map(String)
+
+  const parsed = UpdateEventSettingsSchema.safeParse({
+    introTitle: formData.get("introTitle") ?? '',
+    introSubtitle: formData.get("introSubtitle") ?? '',
+    welcomeMessage: formData.get("welcomeMessage") ?? '',
+    videoUrl: formData.get("videoUrl") ?? '',
+    captions: [...keptCaptions, ...newCaptions],
+  })
+
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos" }
+  }
+
+  const { introTitle, introSubtitle, welcomeMessage, videoUrl } = parsed.data
+
   interface FinalGalleryItem {
-    imageUrl: string;
-    caption: string | null;
+    imageUrl: string
+    caption: string | null
   }
-  
-  let finalItems: FinalGalleryItem[] = [];
 
-  // 2a. Adiciona os itens mantidos (já com suas legendas atualizadas)
-  keptUrls.forEach((url, index) => {
-    finalItems.push({
-        imageUrl: url,
-        caption: keptCaptions[index] || null
-    });
-  });
+  const finalItems: FinalGalleryItem[] = []
 
-  // 2b. Processa uploads e adiciona os novos itens com suas legendas
+  // 2a. Itens mantidos.
+  //
+  // O cliente manda de volta o que deve permanecer, então esses valores são
+  // entrada não confiável: antes eram gravados verbatim, o que permitia apontar
+  // a galeria pública para qualquer URL. Agora só passa chave nossa que já
+  // pertence a este evento.
+  const keptKeys = formData.getAll("keptUrls").map(String)
+
+  const ownedKeys = new Set(
+    (
+      await prisma.galleryItem.findMany({
+        where: { eventId: event.id },
+        select: { imageUrl: true },
+      })
+    ).map((item) => item.imageUrl)
+  )
+
+  // `seen` evita que a mesma chave repetida no formulário vire várias linhas.
+  const seen = new Set<string>()
+
+  keptKeys.forEach((key, index) => {
+    // A checagem de posse é o que impede apontar a galeria para uma imagem
+    // arbitrária; o índice usado na legenda é o original, para os pares
+    // imagem/legenda não desalinharem quando algum item é descartado.
+    if (!ownedKeys.has(key)) return
+    if (seen.has(key)) return
+    if (finalItems.length >= MAX_GALLERY_ITEMS) return
+
+    seen.add(key)
+    finalItems.push({ imageUrl: key, caption: keptCaptions[index]?.trim() || null })
+  })
+
+  // 2b. Novos uploads
+  const newFiles = formData.getAll("newFiles")
+
   for (let i = 0; i < newFiles.length; i++) {
-    const file = newFiles[i] as File;
-    const caption = newCaptions[i] || null;
-    
-    if (file && file.size > 0 && typeof file.arrayBuffer === 'function') {
-      try {
-        const url = await uploadFileToS3(file);
-        finalItems.push({ imageUrl: url, caption: caption });
-      } catch (error) {
-        console.error("Erro ao fazer upload do arquivo:", file.name, error);
+    if (finalItems.length >= MAX_GALLERY_ITEMS) break
+
+    const file = newFiles[i]
+    if (!(file instanceof File) || file.size === 0) continue
+
+    try {
+      const key = await uploadFileToS3(file)
+      finalItems.push({ imageUrl: key, caption: newCaptions[i]?.trim() || null })
+    } catch (error) {
+      if (error instanceof UploadValidationError) {
+        return { success: false, message: error.message }
       }
+      console.error("Falha no upload de item da galeria")
+      return { success: false, message: "Não foi possível enviar uma das imagens." }
     }
   }
 
-  // Limita a 10 itens
-  finalItems = finalItems.slice(0, 10);
-
-  // 3. Atualização Atômica no Banco (Transação)
+  // 3. Atualização atômica
   await prisma.$transaction(async (tx) => {
-    // Atualiza dados gerais do evento
     await tx.event.update({
-        where: { id: event.id },
-        data: { introTitle, introSubtitle, welcomeMessage, videoUrl }
-    });
+      where: { id: event.id },
+      data: { introTitle, introSubtitle, welcomeMessage, videoUrl },
+    })
 
-    // Remove todos os itens de galeria antigos
-    await tx.galleryItem.deleteMany({
-        where: { eventId: event.id }
-    });
+    await tx.galleryItem.deleteMany({ where: { eventId: event.id } })
 
-    // Recria os itens na ordem correta
     if (finalItems.length > 0) {
-        await tx.galleryItem.createMany({
-            data: finalItems.map((item, index) => ({
-                eventId: event.id,
-                imageUrl: item.imageUrl,
-                caption: item.caption,
-                orderIndex: index
-            }))
-        });
+      await tx.galleryItem.createMany({
+        data: finalItems.map((item, index) => ({
+          eventId: event.id,
+          imageUrl: item.imageUrl,
+          caption: item.caption,
+          orderIndex: index,
+        })),
+      })
     }
-  });
+  })
 
   revalidatePath("/admin")
   revalidatePath(`/${event.slug}`)
-  
+
   return { success: true }
 }

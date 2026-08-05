@@ -54,7 +54,7 @@ model Gift {
 
   //Relacionamento com o evento
   eventId String
-  event   Event  @relation(fields: [eventId], references: [id])
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   transactions Transaction[]
 
@@ -68,13 +68,17 @@ model Transaction {
 
   //Relacionameto com o presente
   giftId String
-  gift   Gift   @relation(fields: [giftId], references: [id])
+  gift   Gift   @relation(fields: [giftId], references: [id], onDelete: Cascade)
 
   //Dados do Convidado
-  guestName  String
-  guestEmail String
-  guestCPF   String
-  message    String? @db.Text
+  //
+  //O CPF é exigido pelo Asaas para emitir a cobrança, mas não é guardado aqui:
+  //só a máscara (•••.•••.789-••), suficiente para o casal conferir um pagamento
+  //e para suporte. O dado completo fica no gateway, que é o operador.
+  guestName      String
+  guestEmail     String
+  guestCPFMasked String
+  message        String? @db.Text
 
   //Valores Financeiros
   amountOriginal Decimal @db.Decimal(10, 2)

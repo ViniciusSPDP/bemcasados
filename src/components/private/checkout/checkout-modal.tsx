@@ -122,6 +122,21 @@ export function CheckoutModal({ isOpen, onClose, gift }: checkoutModalProps) {
                         </div>
                     </div>
 
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                        O CPF é exigido pela instituição de pagamento para emitir a cobrança. Ele é
+                        enviado ao Asaas e <strong>não é armazenado por nós</strong> — guardamos apenas
+                        os últimos dígitos para identificar o pagamento.{" "}
+                        <a
+                            href="/politica-de-privacidade"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-rose-600 underline hover:text-rose-700"
+                        >
+                            Política de Privacidade
+                        </a>
+                        .
+                    </p>
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Mensagem (Opcional)</label>
                         <textarea {...register("message")} rows={2} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none resize-none" placeholder="Deixe uma mensagem..." />

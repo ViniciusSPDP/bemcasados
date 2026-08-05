@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
 import { logoutAction } from "@/actions/auth";
 import { deleteGift } from "@/actions/gift-actions";
+import { mediaUrl } from "@/lib/media";
 
 // Componentes
 import { GiftForm } from "@/components/private/admin/gift-form";
@@ -24,7 +25,6 @@ import {
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-const isLocal = process.env.NODE_ENV === 'development';
 
 interface StatCardProps {
     icon: React.ReactNode;
@@ -38,12 +38,26 @@ export default async function AdminPage() {
     const session = await verifySession();
 
     // 2. Busca de Dados do Evento
+    //
+    // `select` explícito em vez de trazer a linha inteira: este objeto é
+    // repassado para <EventSettingsForm>, que é Client Component, então tudo o
+    // que vier aqui é serializado para o HTML. `asaasApiKey` e `walletId` são
+    // credenciais de pagamento do casal e ficam de fora.
     const event = await prisma.event.findFirst({
         where: { userId: session.userId },
-        include: { 
+        select: {
+            id: true,
+            slug: true,
+            title: true,
+            coupleName: true,
+            eventDate: true,
+            introTitle: true,
+            introSubtitle: true,
+            welcomeMessage: true,
+            videoUrl: true,
             galleryItems: {
                 orderBy: { orderIndex: 'asc' }
-            } 
+            }
         }
     });
 
@@ -86,10 +100,10 @@ export default async function AdminPage() {
         include: { gift: true },
     });
 
-    const gifts = await prisma.gift.findMany({
+    const gifts = (await prisma.gift.findMany({
         where: { eventId: event.id },
         orderBy: { createdAt: "desc" },
-    });
+    })).map((gift) => ({ ...gift, imageUrl: mediaUrl(gift.imageUrl) }));
 
     const ticketMedio = totalGiftsSold > 0
         ? Number(totalReceived._sum.amountOriginal || 0) / totalGiftsSold
@@ -226,9 +240,8 @@ export default async function AdminPage() {
                                                     src={gift.imageUrl} 
                                                     alt={gift.title} 
                                                     fill 
-                                                    className="object-cover group-hover:scale-105 transition-transform duration-500" 
-                                                    sizes="80px" 
-                                                    unoptimized={isLocal} 
+                                                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                                    sizes="80px"
                                                 />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center text-gray-300">

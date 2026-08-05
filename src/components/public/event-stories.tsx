@@ -176,9 +176,8 @@ export function EventStories({ items, title, subtitle, message, videoUrl, onComp
                <Image 
                  src={currentItem.imageUrl} 
                  alt={`Slide ${currentIndex}`} 
-                 fill 
+                 fill
                  className="object-cover"
-                 unoptimized
                  priority
                />
             </div>

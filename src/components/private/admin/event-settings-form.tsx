@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { updateEventSettings } from "@/actions/event-actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,22 +11,39 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { X, Upload, Loader2, Music, Image as ImageIcon, Captions } from "lucide-react"
 import Image from "next/image"
 import { toast } from "sonner"
-import { Event, GalleryItem } from "@prisma/client"
+import { GalleryItem } from "@prisma/client"
+import { mediaUrl } from "@/lib/media"
 
-// Tipo extendido para incluir os itens da galeria
-type EventWithGallery = Event & { galleryItems: GalleryItem[] }
-
-interface EventSettingsFormProps {
-  event: EventWithGallery
+/**
+ * Só os campos que o formulário usa.
+ *
+ * O tipo era `Event` inteiro, o que trazia `asaasApiKey` e `walletId` junto —
+ * e como este é um Client Component, tudo o que entra aqui é serializado para
+ * o HTML da página. Listar os campos faz o compilador barrar o retorno deles.
+ */
+type EventSettingsData = {
+  introTitle: string
+  introSubtitle: string
+  welcomeMessage: string | null
+  videoUrl: string | null
+  galleryItems: GalleryItem[]
 }
 
-// Tipos para o estado local
-interface LocalKeptItem { type: 'kept'; id: string; url: string; caption: string }
+interface EventSettingsFormProps {
+  event: EventSettingsData
+}
+
+// Tipos para o estado local.
+// `url` é a chave do objeto no bucket — é ela que volta para o servidor.
+// `displayUrl` é a rota que o <Image> consome. Os dois não se misturam: mandar
+// a URL de exibição de volta faria o servidor rejeitar o item.
+interface LocalKeptItem { type: 'kept'; id: string; url: string; displayUrl: string; caption: string }
 interface LocalNewItem { type: 'new'; id: string; file: File; previewUrl: string; caption: string }
 type LocalGalleryItem = LocalKeptItem | LocalNewItem;
 
 export function EventSettingsForm({ event }: EventSettingsFormProps) {
   const [isPending, setIsPending] = useState(false)
+  const router = useRouter()
   
   // Estado unificado para gerenciar a ordem e as legendas
   const [galleryItems, setGalleryItems] = useState<LocalGalleryItem[]>(() => {
@@ -36,6 +54,7 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
         type: 'kept',
         id: item.id,
         url: item.imageUrl,
+        displayUrl: mediaUrl(item.imageUrl) ?? '',
         caption: item.caption || ''
       }));
   });
@@ -103,18 +122,17 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
 
     try {
         const result = await updateEventSettings(formData)
-        if(result.success) {
+        if(!result.success) {
+            toast.error(result.message ?? "Não foi possível atualizar o evento.")
+        } else {
             toast.success("Evento atualizado com sucesso!")
-            // Em um mundo ideal, recarregaríamos os dados do servidor aqui.
-            // Para simplificar, limpamos os previews de novos arquivos.
-            setGalleryItems(prev => prev.filter(item => {
-                if(item.type === 'new') URL.revokeObjectURL(item.previewUrl);
-                // Mantemos os 'kept' na tela pois agora eles são a verdade,
-                // mas os 'new' deveriam virar 'kept' após save.
-                // O jeito mais fácil de sincronizar sem refresh é este:
-                 return item.type === 'kept';
-            }));
-             // Uma solução melhor para UX seria forçar um router.refresh() aqui.
+            // As fotos novas só ganham a chave definitiva no servidor, então o
+            // estado local precisa vir de lá — sem o refresh a galeria ficaria
+            // sem as imagens recém-enviadas até a próxima navegação.
+            galleryItems.forEach(item => {
+                if (item.type === 'new') URL.revokeObjectURL(item.previewUrl)
+            })
+            router.refresh()
         }
     } catch (error) {
         toast.error("Erro ao atualizar evento.")
@@ -142,11 +160,11 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
             {/* Grid de Galeria com Legendas */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {galleryItems.map((item, idx) => {
-                    const imageUrl = item.type === 'kept' ? item.url : item.previewUrl;
+                    const imageUrl = item.type === 'kept' ? item.displayUrl : item.previewUrl;
                     return (
                     <div key={item.id} className="space-y-2">
                         <div className="relative aspect-9/16 bg-gray-100 rounded-lg overflow-hidden border shadow-sm group">
-                            <Image src={imageUrl} alt="Foto galeria" fill className={`object-cover transition ${item.type === 'new' ? 'opacity-90' : ''}`} />
+                            <Image src={imageUrl} alt="Foto galeria" fill unoptimized={item.type === 'new'} className={`object-cover transition ${item.type === 'new' ? 'opacity-90' : ''}`} />
                             
                             {item.type === 'new' && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none">

@@ -12,7 +12,9 @@
    globalForPrisma.prisma ||
    new PrismaClient({
         adapter,
-        log:
-          process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+        // `"query"` imprime os parâmetros da consulta — e-mail, CPF e hash de
+        // senha iam parar no stdout. Para depurar uma query pontual, ative
+        // manualmente e desative depois.
+        log: ["error", "warn"],
       });
  if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

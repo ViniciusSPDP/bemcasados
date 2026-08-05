@@ -87,21 +87,26 @@ O app ficará disponível em: `http://localhost:3000`
 
 ## Variáveis de ambiente
 
-Crie um `.env` na raiz com, pelo menos, as seguintes chaves:
+Copie o template e preencha:
 
-```env
-# Banco de dados
-DATABASE_URL="postgresql://admin:password123@localhost:5433/bem_casados_db?schema=public"
-
-# Asaas (exemplo)
-ASAAS_API_KEY="<sua_chave_asaas>"
-ASAAS_URL="https://sandbox.asaas.com/api/v3"
-
-# URL pública do app (usada em webhooks/redirects)
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
+```bash
+cp .env.example .env
 ```
 
-Ajuste valores conforme ambiente (sandbox/produção).
+O `.env.example` lista todas as variáveis com uma nota sobre para que servem. As
+que não podem faltar em produção:
+
+| Variável | Por quê |
+|---|---|
+| `DATABASE_URL` | Conexão com o Postgres. |
+| `AUTH_SECRET` | Assina os cookies de sessão. Gere com `openssl rand -base64 48`. |
+| `AUTH_URL` | URL pública. Sem ela, atrás de proxy o login redireciona para `localhost`. |
+| `ASAAS_API_KEY` / `ASAAS_URL` | Gateway de pagamento. Use a URL de sandbox fora de produção. |
+| `ASAAS_WEBHOOK_TOKEN` | Autentica o webhook. Sem ela o endpoint recusa tudo. |
+| `S3_*` | Bucket de imagens. **Precisa ser privado** — as imagens são servidas por `/api/media/<chave>`. |
+| `REDIS_URL` | Rate limiting de checkout e login. Sem ela a aplicação sobe, mas sem freio. |
+
+Nunca versione o `.env`. Para sandbox do Asaas use `https://api-sandbox.asaas.com/v3`.
 
 ---
 

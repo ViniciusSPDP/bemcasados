@@ -1,14 +1,21 @@
+# Ambiente de desenvolvimento local.
+#
+# As credenciais saíram do arquivo: elas ficavam versionadas e o usuário do
+# MinIO era o mesmo nome do host de produção. Agora vêm de um .env local, que
+# está no .gitignore. Copie o .env.example e preencha antes de subir.
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:17-alpine # alinhado com a versão usada em produção
     container_name: bem_casados_db
     restart: always
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: bem_casados_db
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB:-bem_casados_db}
     ports:
-      - '5433:5432'
+      # Só na interface local — sem o 127.0.0.1 o Docker publica na rede toda
+      # e fura o firewall do host.
+      - '127.0.0.1:5433:5432'
     volumes:
       - db_data:/var/lib/postgresql/data
 
@@ -17,14 +24,24 @@ services:
     container_name: bem_casados_minio
     command: server /data --console-address ":9001"
     ports:
-      - '9002:9000'
-      - '9003:9001'
+      - '127.0.0.1:9002:9000'
+      - '127.0.0.1:9003:9001'
     environment:
-      MINIO_ROOT_USER: "s4r41va"
-      MINIO_ROOT_PASSWORD: "minioadmin"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?defina MINIO_ROOT_USER no .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?defina MINIO_ROOT_PASSWORD no .env}
     volumes:
       - minio_data:/data
     restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: bem_casados_redis
+    restart: always
+    # `--save ""` desliga a persistência: são contadores de rate limit, perder
+    # tudo num restart é aceitável e evita gravar chave de IP em disco.
+    command: redis-server --save "" --appendonly no
+    ports:
+      - '127.0.0.1:6379:6379'
 
 volumes:
   db_data:

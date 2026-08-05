@@ -1,0 +1,34 @@
+# Dependências (reinstaladas dentro da imagem)
+node_modules
+.pnpm-store
+
+# Histórico e metadados do git — nunca devem entrar na imagem
+.git
+.gitignore
+.github
+
+# Segredos
+.env
+.env.*
+*.pem
+*.key
+
+# Artefatos de build
+.next
+out
+build
+dist
+coverage
+*.tsbuildinfo
+next-env.d.ts
+
+# Ambiente local
+docker-compose.yml
+Dockerfile
+.dockerignore
+.vscode
+.idea
+.DS_Store
+
+# Documentação
+*.md

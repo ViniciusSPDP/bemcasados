@@ -5,8 +5,6 @@ import { CheckoutModal } from "../private/checkout/checkout-modal";
 import { Gift, Heart } from "lucide-react";
 import Image from "next/image";
 
-const isLocal = process.env.NODE_ENV === 'development';
-
 //Tipagem
 interface GiftItem {
   id: string;
@@ -40,7 +38,6 @@ export function GiftList({ gifts }: GiftListProps) {
                   fill
                   className="object-cover group-hover:scale-105 transition-transform duration-500"
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  unoptimized={isLocal}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-stone-300">

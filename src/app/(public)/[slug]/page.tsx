@@ -4,6 +4,7 @@ import { PublicPageContent } from "./public-page-content";
 import { StoryItem } from "@/components/public/event-stories";
 import { Gift, Event as PrismaEvent, GalleryItem } from "@prisma/client";
 import { Metadata, ResolvingMetadata } from "next";
+import { mediaUrl } from "@/lib/media";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -14,7 +15,12 @@ export interface SerializedGift extends Omit<Gift, "price"> {
   price: number;
 }
 
-export interface SerializedEvent extends PrismaEvent {
+/**
+ * Este objeto é serializado para um Client Component, ou seja, vai parar no HTML
+ * da página pública. `asaasApiKey` e `walletId` são credenciais do casal e ficam
+ * fora do tipo de propósito — assim o compilador impede que voltem por descuido.
+ */
+export interface SerializedEvent extends Omit<PrismaEvent, "asaasApiKey" | "walletId"> {
   gifts: SerializedGift[];
   galleryItems?: GalleryItem[];
 }
@@ -50,9 +56,10 @@ export async function generateMetadata(
     };
   }
 
-  // Tenta pegar a imagem do primeiro story, senão usa a imagem padrão do site
+  // Tenta pegar a imagem do primeiro story, senão usa a imagem padrão do site.
+  // O caminho relativo é resolvido pelo `metadataBase` do layout raiz.
   const previousImages = (await parent).openGraph?.images || [];
-  const coverImage = event.galleryItems[0]?.imageUrl || "/og-image.jpg"; // Certifique-se de ter essa imagem em public/
+  const coverImage = mediaUrl(event.galleryItems[0]?.imageUrl) || "/og-image.jpg";
 
   const description = event.introSubtitle || `Lista de presentes e confirmação de presença para o casamento de ${event.coupleName}.`;
 
@@ -62,7 +69,9 @@ export async function generateMetadata(
     openGraph: {
       title: `Casamento de ${event.coupleName}`,
       description: description,
-      url: `https://bemcasados.com/${slug}`, // Ajuste para seu domínio real em produção
+      // Relativo de propósito: o `metadataBase` do layout raiz resolve com o
+      // domínio real. Estava fixo em bemcasados.com, que não é o domínio do site.
+      url: `/${slug}`,
       siteName: "BemCasados",
       images: [
         {
@@ -96,11 +105,11 @@ export default async function EventPage({ params }: PageProps) {
   }
 
   // 1. Tratamento da Galeria (Stories)
-  const storyItems: StoryItem[] = event.galleryItems.map((item) => ({
-    id: item.id,
-    imageUrl: item.imageUrl,
-    caption: item.caption,
-  }));
+  // O banco guarda a chave do objeto; `mediaUrl` resolve para /api/media/<chave>.
+  const storyItems: StoryItem[] = event.galleryItems.flatMap((item) => {
+    const url = mediaUrl(item.imageUrl);
+    return url ? [{ id: item.id, imageUrl: url, caption: item.caption }] : [];
+  });
 
   const finalStoryItems: StoryItem[] =
     storyItems.length > 0
@@ -124,11 +133,16 @@ export default async function EventPage({ params }: PageProps) {
         ];
 
   // 2. Serialização do Evento (Decimal -> Number)
+  // `asaasApiKey` e `walletId` são segredos do casal e não podem sair do servidor.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { asaasApiKey, walletId, ...publicEvent } = event;
+
   const serializedEvent: SerializedEvent = {
-    ...event,
+    ...publicEvent,
     gifts: event.gifts.map((gift) => ({
       ...gift,
       price: Number(gift.price), // Converte Decimal para Number
+      imageUrl: mediaUrl(gift.imageUrl),
     })),
   };
 

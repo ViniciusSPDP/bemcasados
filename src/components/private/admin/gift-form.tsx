@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { createGift } from "@/actions/gift-actions";
 import { PlusCircle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export function GiftForm() {
     const formRef = useRef<HTMLFormElement>(null);
@@ -11,11 +12,15 @@ export function GiftForm() {
     async function handleSubmit(formData: FormData) {
         setIsUploading(true);
         try{
-            await createGift(formData);
-            formRef.current?.reset();
-            alert("Presente criado com sucesso!");
-        } catch (error) {
-            console.error("Erro ao criar presente:", error);
+            const result = await createGift(formData);
+            if (result.success) {
+                formRef.current?.reset();
+                toast.success("Presente criado com sucesso!");
+            } else {
+                toast.error(result.message ?? "Não foi possível criar o presente.");
+            }
+        } catch {
+            toast.error("Erro inesperado ao criar presente.");
         } finally {
             setIsUploading(false);
         }

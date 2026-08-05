@@ -13,20 +13,32 @@ const adapter = new PrismaPg(pool);
 
 const prisma = new PrismaClient({
   adapter,
-  log: ["query", "info", "warn", "error"],
+  log: ["warn", "error"],
 });
 
 async function main() {
   console.log("🌱 Iniciando o seed...");
 
-  // Lendo variáveis de ambiente para produção
-  const adminEmail = process.env.ADMIN_EMAIL || "noivos@teste.com";
-  const adminPassword = process.env.ADMIN_PASSWORD || "Vinicius123@";
+  // Sem valor padrão de propósito. A senha que estava aqui como fallback ficava
+  // versionada no repositório e criaria um admin de senha conhecida em qualquer
+  // ambiente onde ADMIN_PASSWORD não fosse definida.
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    throw new Error(
+      "Defina ADMIN_EMAIL e ADMIN_PASSWORD antes de rodar o seed."
+    );
+  }
+
+  if (adminPassword.length < 12) {
+    throw new Error("ADMIN_PASSWORD deve ter ao menos 12 caracteres.");
+  }
 
   console.log(`📧 Usando e-mail: ${adminEmail}`);
 
   // 1. Criar o Usuário (Dono do Evento)
-  const hashedPassword = await bcrypt.hash(adminPassword, 10);
+  const hashedPassword = await bcrypt.hash(adminPassword, 12);
 
   const user = await prisma.user.upsert({
     where: { email: adminEmail },
