@@ -45,8 +45,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // Imagem de produção enxuta, sem devDependencies nem código-fonte.
-  output: "standalone",
+  // `output: "standalone"` foi removido de propósito.
+  //
+  // O Prisma 7 quebrou o runtime do client em pacotes carregados dinamicamente
+  // (`@prisma/client-runtime-utils` e companhia). O tracer do standalone não
+  // enxerga esses require dinâmicos, então a imagem subia sem eles e toda rota
+  // que tocasse o banco morria com "Cannot find module". A imagem fica maior,
+  // mas leva o node_modules inteiro e não depende de heurística de tracing.
 
   // Não anunciar framework e versão no header.
   poweredByHeader: false,
