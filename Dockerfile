@@ -43,17 +43,19 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # O WORKDIR é /app nos dois estágios de propósito: os shims em
 # node_modules/.bin que o pnpm gera guardam caminho absoluto, e mudar o
 # diretório os quebraria.
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/next.config.ts ./next.config.ts
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-
 # A imagem node já traz o usuário `node` (uid 1000). Rodar como root deixaria
 # uma execução de código arbitrário com controle total do container.
-RUN chown -R node:node /app
+#
+# A posse é definida no próprio COPY: um `RUN chown -R` depois criaria uma
+# camada com a cópia integral da árvore, dobrando o tamanho da imagem.
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/.next ./.next
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/package.json ./package.json
+COPY --from=builder --chown=node:node /app/next.config.ts ./next.config.ts
+COPY --from=builder --chown=node:node /app/prisma ./prisma
+COPY --from=builder --chown=node:node /app/prisma.config.ts ./prisma.config.ts
+
 USER node
 
 EXPOSE 3000

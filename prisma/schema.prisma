@@ -3,6 +3,17 @@ generator client {
   output   = "../node_modules/.prisma/client"
 }
 
+// O client é gerado em `node_modules/.prisma/client`, que fica FORA do grafo de
+// dependências do pnpm. A partir do 7.9 o Prisma passou a carregar o runtime de
+// um pacote separado (`@prisma/client-runtime-utils`), e desse diretório o Node
+// só enxerga o que estiver em `node_modules/@prisma/` — onde o pnpm, por ser
+// estrito, coloca apenas as dependências declaradas.
+//
+// Por isso `@prisma/client-runtime-utils` está no package.json como dependência
+// direta e em versão exata: sem ele, toda consulta morre em runtime com
+// "Cannot find module '@prisma/client-runtime-utils'". Os pacotes do Prisma
+// estão todos pinados porque precisam subir juntos.
+
 datasource db {
   provider = "postgresql"
 }
