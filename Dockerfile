@@ -2,7 +2,7 @@
 # nem o histórico do git, e roda como usuário sem privilégio.
 
 # ---------- 1. Dependências de build ----------
-FROM node:22.12.0-alpine AS deps
+FROM node:22.23.2-alpine AS deps
 RUN apk add --no-cache openssl
 WORKDIR /app
 
@@ -15,7 +15,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # ---------- 2. Build ----------
-FROM node:22.12.0-alpine AS builder
+FROM node:22.23.2-alpine AS builder
 RUN apk add --no-cache openssl
 WORKDIR /app
 
@@ -39,12 +39,12 @@ RUN pnpm build
 # `standalone` do Next não carrega.
 #
 # A versão precisa acompanhar a do package.json.
-FROM node:22.12.0-alpine AS migrator
+FROM node:22.23.2-alpine AS migrator
 WORKDIR /migrate
 RUN npm install --no-save --omit=dev prisma@7.9.1 dotenv@17.2.3
 
 # ---------- 4. Runtime ----------
-FROM node:22.12.0-alpine AS runner
+FROM node:22.23.2-alpine AS runner
 RUN apk add --no-cache openssl
 WORKDIR /app
 
