@@ -66,8 +66,28 @@ const nextConfig: NextConfig = {
   },
 
   images: {
+    // O otimizador está desligado de propósito, com base em medição:
+    //
+    //   /api/media    -> 0,1s  (cf-cache-status: HIT)
+    //   /_next/image  -> 2,3s  (cf-cache-status: DYNAMIC)
+    //
+    // O otimizador responde com `vary: Accept`, e o Cloudflare não cacheia
+    // esse tipo de resposta. Resultado: cada visitante pagava ~2,3s por
+    // imagem, 19 delas numa página de casamento. A rota /api/media, por não
+    // variar por header, é cacheada na borda.
+    //
+    // A compressão foi movida para o momento do upload (src/lib/s3.ts):
+    // as fotos já entram no bucket como WebP redimensionado, então não há o
+    // que o otimizador acrescente — ele economizava 191KB -> 134KB ao custo
+    // de 2,2s.
+    //
+    // Servir sem otimizar é seguro aqui: o Content-Type de /api/media vem de
+    // uma allowlist no servidor, com `nosniff`, e o upload valida o tipo real
+    // pelos magic bytes. Não há caminho para um arquivo executável.
+    unoptimized: true,
+
     // `dangerouslyAllowSVG` foi removido: SVG é XML executável, e o upload
-    // agora só aceita JPEG/PNG/WebP de qualquer forma.
+    // só aceita JPEG/PNG/WebP de qualquer forma.
     //
     // O host do MinIO saiu daqui porque o bucket deixou de ser público — as
     // imagens passam por /api/media/<chave>, que é caminho relativo.

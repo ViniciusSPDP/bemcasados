@@ -164,7 +164,7 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
                     return (
                     <div key={item.id} className="space-y-2">
                         <div className="relative aspect-9/16 bg-gray-100 rounded-lg overflow-hidden border shadow-sm group">
-                            <Image src={imageUrl} alt="Foto galeria" fill unoptimized={item.type === 'new'} className={`object-cover transition ${item.type === 'new' ? 'opacity-90' : ''}`} />
+                            <Image src={imageUrl} alt="Foto galeria" fill className={`object-cover transition ${item.type === 'new' ? 'opacity-90' : ''}`} />
                             
                             {item.type === 'new' && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none">

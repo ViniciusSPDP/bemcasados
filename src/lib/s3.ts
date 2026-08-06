@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
-import { ALLOWED_IMAGE_MIME, type AllowedMime } from "@/lib/media";
+import sharp from "sharp";
+import { type AllowedMime } from "@/lib/media";
 import "server-only";
 
 const s3Client = new S3Client({
@@ -46,8 +47,20 @@ function sniffMime(buf: Buffer): AllowedMime | null {
 }
 
 /**
+ * Maior dimensão guardada. As fotos aparecem como stories em tela cheia; acima
+ * disso é peso que nenhuma tela aproveita.
+ */
+const MAX_DIMENSION = 1920;
+
+/**
  * Envia uma imagem para o bucket e devolve a **chave** do objeto (não a URL).
  * O bucket é privado: a exibição passa por `/api/media/<chave>`.
+ *
+ * A imagem é reduzida e convertida para WebP aqui, e não no `/_next/image`.
+ * Otimizar por requisição custava ~2,3s por foto, porque o otimizador responde
+ * com `vary: Accept` e o Cloudflare não cacheia esse tipo de resposta. Fazendo
+ * uma vez no upload, o que vai para o bucket já está pronto e a entrega fica
+ * cacheada na borda.
  */
 export async function uploadFileToS3(file: File): Promise<string> {
     const bucketName = process.env.S3_BUCKET;
@@ -62,23 +75,38 @@ export async function uploadFileToS3(file: File): Promise<string> {
         );
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const original = Buffer.from(await file.arrayBuffer());
 
-    const mime = sniffMime(buffer);
-    if (!mime) {
+    // A validação continua sendo pelos magic bytes, antes de qualquer
+    // processamento: é ela que impede um .html renomeado de entrar.
+    if (!sniffMime(original)) {
         throw new UploadValidationError("Formato inválido. Envie JPEG, PNG ou WebP.");
+    }
+
+    let processed: Buffer;
+    try {
+        processed = await sharp(original)
+            .rotate() // respeita o EXIF antes de descartá-lo
+            .resize(MAX_DIMENSION, MAX_DIMENSION, { fit: "inside", withoutEnlargement: true })
+            // O WebP re-encoda a imagem inteira, o que de quebra elimina os
+            // metadados EXIF — inclusive a geolocalização que celulares
+            // costumam gravar na foto.
+            .webp({ quality: 82 })
+            .toBuffer();
+    } catch {
+        throw new UploadValidationError("Não foi possível processar a imagem.");
     }
 
     // O nome vindo do cliente é descartado por completo: ele controlaria a chave
     // do objeto (prefixos, sobrescrita, caracteres de path).
-    const key = `${randomUUID()}.${ALLOWED_IMAGE_MIME[mime]}`;
+    const key = `${randomUUID()}.webp`;
 
     await s3Client.send(
         new PutObjectCommand({
             Bucket: bucketName,
             Key: key,
-            Body: buffer,
-            ContentType: mime,
+            Body: processed,
+            ContentType: "image/webp" satisfies AllowedMime,
             CacheControl: "private, max-age=31536000, immutable",
         })
     );
