@@ -201,8 +201,25 @@ export function InviteContent({
                         </p>
                     )}
 
+                    {/*
+                      `whitespace-pre-line` respeita a quebra de linha que o
+                      casal digitou. O campo no painel é um `<textarea>`, então
+                      a interface já promete várias linhas — sem isto o `\n` era
+                      colapsado num espaço e a promessa se perdia em silêncio.
+                      Serve, na prática, para a referência do versículo cair numa
+                      linha própria em vez de emendar no fim da citação.
+
+                      Só a quebra é preservada: `pre-line` continua colapsando
+                      espaço repetido, então texto colado de outro lugar não
+                      chega esburacado.
+
+                      Não confundir com U+2028 (LINE SEPARATOR): testamos, e o
+                      navegador o trata como espaço comum sob `white-space:
+                      normal`. Não existe caractere de texto puro que force a
+                      quebra — tem de ser CSS.
+                    */}
                     {verse && (
-                        <p className="mx-auto mt-7 max-w-xs text-[0.7rem] uppercase leading-relaxed tracking-[0.18em] text-slate-200 [text-shadow:0_1px_3px_rgba(0,0,0,0.55)]">
+                        <p className="mx-auto mt-7 max-w-xs whitespace-pre-line text-[0.7rem] uppercase leading-relaxed tracking-[0.18em] text-slate-200 [text-shadow:0_1px_3px_rgba(0,0,0,0.55)]">
                             {verse}
                         </p>
                     )}
