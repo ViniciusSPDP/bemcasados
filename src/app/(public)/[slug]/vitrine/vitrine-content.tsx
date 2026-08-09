@@ -5,6 +5,32 @@ import Image from "next/image";
 import { ShoppingBag, ExternalLink, Check, Heart } from "lucide-react";
 import type { PublicExternalGift } from "@/lib/external-gift";
 import { ReserveGiftDialog } from "@/components/public/reserve-gift-dialog";
+import { colorSwatch, colorLabel } from "@/lib/color-tag";
+
+/**
+ * "● BEGE" sobre a foto do produto.
+ *
+ * A bolinha é reforço; quem carrega a informação é o NOME. Cor que não
+ * reconhecemos vira chip neutro em vez de um tom inventado — o convidado
+ * confiaria na bolinha, e errar aqui é pior do que não ter bolinha nenhuma.
+ *
+ * O anel claro em volta existe para "branco" e "off-white" não sumirem contra o
+ * fundo escuro da etiqueta.
+ */
+function ColorTag({ name }: { name: string }) {
+    const { hex, isLight } = colorSwatch(name);
+
+    return (
+        <span className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-[#0a1628]/85 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wider text-white shadow-sm ring-1 ring-white/20">
+            <span
+                aria-hidden
+                className={`h-3 w-3 shrink-0 rounded-full ${isLight ? "ring-1 ring-black/25" : "ring-1 ring-white/30"}`}
+                style={{ backgroundColor: hex }}
+            />
+            {colorLabel(name)}
+        </span>
+    );
+}
 
 export function VitrineContent({ gifts }: { gifts: PublicExternalGift[] }) {
     const [selected, setSelected] = useState<PublicExternalGift | null>(null);
@@ -33,6 +59,15 @@ export function VitrineContent({ gifts }: { gifts: PublicExternalGift[] }) {
                                     <ShoppingBag className="text-[#c9a227]/30" size={36} />
                                 </div>
                             )}
+
+                            {/* Etiqueta de cor sobre a foto, no canto oposto ao
+                                "Reservado" para as duas nunca se cobrirem.
+
+                                Fica AQUI, e não junto do título, porque é onde o
+                                convidado olha antes de tocar em "Comprar" — que é
+                                o momento exato em que ele erraria a variação do
+                                anúncio. */}
+                            {gift.colorTag && <ColorTag name={gift.colorTag} />}
 
                             {gift.isReserved && (
                                 <span className="absolute top-3 right-3 bg-[#c9a227] text-[#0a1628] text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">

@@ -3,19 +3,22 @@
 import Image from "next/image";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { ShoppingBag, Trash2, Loader2, ExternalLink, Phone, AlertTriangle } from "lucide-react";
+import { ShoppingBag, Trash2, Loader2, ExternalLink, Phone, AlertTriangle, Palette, Check as CheckIcon, X } from "lucide-react";
 import {
     deleteExternalGift,
     releaseExternalGiftReservation,
     deleteAllExternalGifts,
+    setExternalGiftColor,
 } from "@/actions/external-gift-actions";
 import { formatPhone } from "@/lib/phone";
+import { colorSwatch } from "@/lib/color-tag";
 
 export interface AdminExternalGift {
     id: string;
     title: string;
     imageUrl: string | null;
     shortUrl: string;
+    colorTag: string | null;
     reservedAt: Date | null;
     reservedName: string | null;
     reservedPhone: string | null;
@@ -147,6 +150,112 @@ function DeleteAllButton({ total, reserved }: { total: number; reserved: number 
  */
 const CONFIRM_DELAY_MS = 400;
 
+/**
+ * Etiqueta de cor do item, editável ali mesmo.
+ *
+ * A vitrine não tem edição de item, mas a cor precisa ser ajustável sem
+ * recadastrar: ela costuma ser descoberta DEPOIS — quando o casal abre o anúncio
+ * e vê que tem variação, ou quando um convidado avisa que comprou a errada.
+ * Recriar o item perderia a reserva de quem já escolheu.
+ *
+ * Campo aberto e não uma lista: quem nomeia a cor é o vendedor do anúncio.
+ */
+function ColorControl({ id, colorTag }: { id: string; colorTag: string | null }) {
+    const [editando, setEditando] = useState(false);
+    const [valor, setValor] = useState(colorTag ?? "");
+    const [salvando, setSalvando] = useState(false);
+
+    async function salvar(novo: string) {
+        setSalvando(true);
+        try {
+            const result = await setExternalGiftColor(id, novo);
+            if (result.success) {
+                toast.success(novo ? `Cor definida: ${novo}` : "Etiqueta de cor removida.");
+                setEditando(false);
+            } else {
+                toast.error(result.message ?? "Não foi possível salvar a cor.");
+            }
+        } catch {
+            toast.error("Erro inesperado ao salvar a cor.");
+        } finally {
+            setSalvando(false);
+        }
+    }
+
+    if (!editando) {
+        const swatch = colorTag ? colorSwatch(colorTag) : null;
+
+        return (
+            <button
+                type="button"
+                onClick={() => setEditando(true)}
+                title="Cor que o convidado deve escolher no anúncio"
+                className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs text-gray-600 transition hover:border-rose-300 hover:bg-rose-50"
+            >
+                {swatch ? (
+                    <>
+                        <span
+                            aria-hidden
+                            className="h-3 w-3 shrink-0 rounded-full ring-1 ring-black/15"
+                            style={{ backgroundColor: swatch.hex }}
+                        />
+                        {colorTag}
+                        {!swatch.known && (
+                            <span className="text-gray-400" title="Cor não reconhecida — aparece com bolinha neutra">
+                                ?
+                            </span>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <Palette size={13} className="text-gray-400" /> Definir cor
+                    </>
+                )}
+            </button>
+        );
+    }
+
+    return (
+        <div className="mt-2 flex items-center gap-1.5">
+            <input
+                autoFocus
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") salvar(valor.trim());
+                    if (e.key === "Escape") setEditando(false);
+                }}
+                maxLength={24}
+                placeholder="Bege, Off-white..."
+                className="w-40 rounded-lg border border-gray-200 p-1.5 text-xs outline-none focus:ring-2 focus:ring-rose-500"
+            />
+            <button
+                type="button"
+                onClick={() => salvar(valor.trim())}
+                disabled={salvando}
+                aria-label="Salvar cor"
+                className="rounded-lg border border-emerald-200 p-1.5 text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-60"
+            >
+                {salvando ? <Loader2 className="animate-spin" size={13} /> : <CheckIcon size={13} />}
+            </button>
+            {colorTag && (
+                <button
+                    type="button"
+                    onClick={() => {
+                        setValor("");
+                        salvar("");
+                    }}
+                    disabled={salvando}
+                    aria-label="Remover etiqueta de cor"
+                    className="rounded-lg border border-gray-200 p-1.5 text-gray-500 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                >
+                    <X size={13} />
+                </button>
+            )}
+        </div>
+    );
+}
+
 function ExternalGiftRow({ item }: { item: AdminExternalGift }) {
     const [isReleasing, setIsReleasing] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -221,6 +330,8 @@ function ExternalGiftRow({ item }: { item: AdminExternalGift }) {
                     <span className="truncate">{item.shortUrl}</span>
                     <ExternalLink size={12} className="shrink-0" />
                 </a>
+
+                <ColorControl id={item.id} colorTag={item.colorTag} />
 
                 {item.reservedAt && (
                     <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">

@@ -140,6 +140,26 @@ export function ExternalGiftForm() {
                     />
                 </div>
 
+                {/* Só faz sentido quando o anúncio tem variação de cor — que é
+                    a minoria dos itens. Por isso é opcional e vem com a
+                    explicação do porquê: sem ela o convidado compra a cor que
+                    estiver selecionada na página do Mercado Livre. */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
+                        Cor <span className="text-gray-400 font-normal">(opcional)</span>
+                    </label>
+                    <input
+                        name="colorTag"
+                        maxLength={24}
+                        placeholder="Bege, Off-white, Azul marinho..."
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-rose-500 outline-none"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                        Preencha só se o anúncio tiver mais de uma cor. Aparece como etiqueta na
+                        foto, para o convidado não comprar a errada.
+                    </p>
+                </div>
+
                 <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">Foto</label>
                     <input

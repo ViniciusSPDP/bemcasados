@@ -160,6 +160,15 @@ model ExternalGift {
   // comissão. Por isso a URL resolvida não é persistida em nenhum campo.
   shortUrl    String  @db.Text
   externalId  String? // MLB123456789 quando dá para extrair; null é o normal
+  // Cor que o casal quer daquele produto, quando o anúncio tem variação
+  // ("Bege", "Off-white", "Azul marinho"). Opcional: a maioria dos itens não
+  // tem variação e não ganha etiqueta nenhuma.
+  //
+  // Texto livre, e não uma lista fechada: o nome da cor no Mercado Livre é o que
+  // o vendedor escreveu, e uma lista nossa nunca acompanharia. A amostra visual
+  // é derivada do nome em `src/lib/color-tag.ts`, com chip neutro quando o nome
+  // não é reconhecido — o NOME é o que importa para o convidado acertar a compra.
+  colorTag    String?
 
   // Reserva. Não expira: o casal libera pelo painel.
   reservedAt      DateTime?

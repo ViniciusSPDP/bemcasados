@@ -135,6 +135,7 @@ export default async function AdminPage() {
             title: true,
             imageUrl: true,
             shortUrl: true,
+            colorTag: true,
             reservedAt: true,
             reservedName: true,
             reservedPhone: true,

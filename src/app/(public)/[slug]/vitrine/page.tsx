@@ -42,6 +42,9 @@ async function getVitrineData(slug: string) {
           description: true,
           imageUrl: true,
           shortUrl: true,
+          // Informação PARA o convidado: sem ela ele compra a variação errada
+          // do anúncio. Não é dado pessoal.
+          colorTag: true,
           reservedAt: true,
         },
       },

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { uploadFileToS3, UploadValidationError } from "@/lib/s3";
 import {
     CreateExternalGiftSchema,
+    ExternalGiftColorSchema,
     ExternalGiftUrlSchema,
     MAX_EXTERNAL_GIFTS,
     MAX_IMPORT_ROWS,
@@ -102,13 +103,14 @@ export async function createExternalGift(formData: FormData): Promise<ActionResu
         title: formData.get("title"),
         description: formData.get("description") ?? "",
         imageSourceUrl: formData.get("imageSourceUrl") ?? "",
+        colorTag: formData.get("colorTag") ?? "",
     });
 
     if (!parsed.success) {
         return { success: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos" };
     }
 
-    const { shortUrl, title, description, imageSourceUrl } = parsed.data;
+    const { shortUrl, title, description, imageSourceUrl, colorTag } = parsed.data;
 
     const event = await prisma.event.findFirst({
         where: { userId: session.userId },
@@ -159,6 +161,7 @@ export async function createExternalGift(formData: FormData): Promise<ActionResu
                 // carrega o código de afiliado.
                 shortUrl,
                 externalId: extractMlbId(shortUrl),
+                colorTag: colorTag || null,
             },
         });
     } catch (error) {
@@ -436,6 +439,57 @@ export async function deleteExternalGift(id: string) {
     revalidatePath("/admin");
     revalidatePath(`/${gift.event.slug}`);
     revalidatePath(`/${gift.event.slug}/vitrine`);
+}
+
+/**
+ * Define ou limpa a etiqueta de cor de um item.
+ *
+ * A vitrine não tem edição de item (ficou fora da v1), mas a cor precisa ser
+ * ajustável sem recadastrar: ela costuma ser descoberta DEPOIS, quando o casal
+ * abre o anúncio e vê que tem variação — ou quando o convidado avisa que comprou
+ * a errada. Recriar o item perderia a reserva de quem já escolheu.
+ *
+ * String vazia limpa a etiqueta.
+ */
+export async function setExternalGiftColor(id: string, colorTag: string): Promise<ActionResult> {
+    const session = await verifySession();
+
+    try {
+        await enforceRateLimit({
+            key: `external-gift:color:${session.userId}`,
+            limit: 120,
+            windowSeconds: 60 * 60,
+            message: "Muitas alterações em pouco tempo.",
+        });
+    } catch (error) {
+        if (error instanceof RateLimitError) return { success: false, message: error.message };
+        throw error;
+    }
+
+    const parsed = ExternalGiftColorSchema.safeParse(colorTag);
+    if (!parsed.success) {
+        return { success: false, message: parsed.error.issues[0]?.message ?? "Cor inválida" };
+    }
+
+    const gift = await prisma.externalGift.findUnique({
+        where: { id },
+        select: { id: true, event: { select: { userId: true, slug: true } } },
+    });
+
+    // Mesma resposta para "não existe" e "não é seu".
+    if (!gift || gift.event.userId !== session.userId) {
+        return { success: false, message: "Presente não encontrado." };
+    }
+
+    await prisma.externalGift.update({
+        where: { id },
+        data: { colorTag: parsed.data || null },
+    });
+
+    revalidatePath("/admin");
+    revalidatePath(`/${gift.event.slug}/vitrine`);
+
+    return { success: true };
 }
 
 /**

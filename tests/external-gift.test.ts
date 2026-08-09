@@ -26,6 +26,7 @@ test("toPublicExternalGift não deixa a reserva vazar para a página pública", 
 
     // Lista fechada: um campo novo no modelo não entra aqui por descuido.
     assert.deepEqual(Object.keys(publico).sort(), [
+        "colorTag",
         "description",
         "id",
         "imageUrl",
@@ -33,6 +34,16 @@ test("toPublicExternalGift não deixa a reserva vazar para a página pública", 
         "shortUrl",
         "title",
     ]);
+});
+
+test("a cor pedida pelo casal ATRAVESSA para a vitrine", () => {
+    // Ao contrário do nome e do telefone de quem reservou, esta sai de propósito:
+    // é o que impede o convidado de comprar a variação errada do anúncio.
+    assert.equal(toPublicExternalGift({ ...RESERVADO, colorTag: "Bege" }).colorTag, "Bege");
+
+    // A maioria dos itens não tem variação e não ganha etiqueta nenhuma.
+    assert.equal(toPublicExternalGift(RESERVADO).colorTag, null, "ausente vira null, não undefined");
+    assert.equal(toPublicExternalGift({ ...RESERVADO, colorTag: null }).colorTag, null);
 });
 
 test("toPublicExternalGift deriva isReserved do carimbo de data", () => {

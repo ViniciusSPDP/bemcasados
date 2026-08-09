@@ -243,6 +243,20 @@ export const ExternalImageUrlSchema = z
     .default('');
 
 /**
+ * Cor pedida pelo casal, quando o anúncio tem variação ("Bege", "Off-white").
+ *
+ * Texto livre e curto: quem nomeia a cor é o vendedor do anúncio, e uma lista
+ * fechada nossa nunca acompanharia. Vazio significa "sem etiqueta", que é o caso
+ * da maioria dos itens. O teto de 24 é o que cabe na etiqueta sobre a foto sem
+ * ela virar uma segunda descrição.
+ */
+export const ExternalGiftColorSchema = z
+    .string()
+    .trim()
+    .max(24, { message: 'Nome da cor muito longo' })
+    .default('');
+
+/**
  * Sem campo de preço de propósito: quem cobra é o Mercado Livre, e o valor de lá
  * varia. Um número congelado aqui mostraria ao convidado um preço que não é o
  * que ele vai pagar.
@@ -252,6 +266,7 @@ export const CreateExternalGiftSchema = z.object({
     title: z.string().trim().min(3, { message: 'Título muito curto' }).max(140, { message: 'Título muito longo' }),
     description: z.string().trim().max(1000, { message: 'Descrição muito longa' }).default(''),
     imageSourceUrl: ExternalImageUrlSchema,
+    colorTag: ExternalGiftColorSchema,
 })
 
 /** Dados do convidado que reserva. Sem CPF, sem e-mail, sem valor. */
