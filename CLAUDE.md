@@ -329,6 +329,14 @@ linha de comando completa nesses logs, em texto plano e world-readable.
 
 ## Convenções
 
+- **Testar local sempre; merge e deploy só com autorização explícita.** Rode
+  `pnpm lint && pnpm test && pnpm build` e valide em runtime local antes de
+  qualquer coisa. Uma autorização anterior vale para **aquele** deploy, não para
+  os próximos — e perguntar sem esperar a resposta não conta. Quando houver
+  dependência de ordem entre subir código e alterar dado de produção (o caso
+  clássico: a correção de fuso precisa estar no ar antes de a data ser
+  corrigida), **explique a dependência e pare** — a decisão de quando produção
+  muda é do Vinicius, não sua.
 - Comentários e mensagens de commit em **português**.
 - Comentários explicam **por quê**, não o quê — especialmente onde a escolha
   parece estranha sem contexto.
