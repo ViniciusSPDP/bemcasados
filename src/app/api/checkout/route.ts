@@ -117,6 +117,9 @@ export async function POST(req: Request) {
                 asaasId: asaasResponse.paymentId,
                 paymentLink: asaasResponse.invoiceUrl,
                 paymentMethod: data.paymentMethod,
+                // O webhook precisa disto para saber que `amountCharged` é o
+                // total e que o Asaas vai reportar o valor de uma parcela.
+                installments: asaasResponse.financials.installments,
                 status: "PENDING",
             },
         });

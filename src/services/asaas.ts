@@ -27,8 +27,9 @@ const api = axios.create({
 
 /**
  * Consulta o pagamento direto na API. O webhook não é fonte da verdade — quem
- * tiver o token consegue anunciar qualquer status, então o valor e o estado são
- * reconferidos aqui antes de liberar o presente.
+ * tiver o token consegue anunciar qualquer status, então quem chama reconfere o
+ * estado, o valor e a referência do presente antes de liberar (ver
+ * `src/app/api/webhook/asaas/route.ts`).
  */
 export async function getAsaasPayment(paymentId: string) {
   const { data } = await api.get(`/payments/${encodeURIComponent(paymentId)}`);
@@ -51,7 +52,14 @@ async function getOrCreateCustomer(data: CustomerData) {
     });
     return newCustomer.id;
   } catch (error) {
-    console.error("Erro ao criar cliente no ASAAS:", error);
+    // Só a mensagem, nunca o objeto de erro. Um AxiosError carrega `config`
+    // junto: o corpo do POST (nome, CPF completo e e-mail do convidado), a URL
+    // com o CPF na query string e o header `access_token` com a chave da API.
+    // Logar o objeto inteiro colocaria tudo isso no log do container.
+    console.error(
+      "Erro ao criar cliente no gateway:",
+      error instanceof Error ? error.message : "erro desconhecido"
+    );
     throw new Error("Erro ao criar cliente no gateway de pagamento.");
   }
 }
@@ -114,9 +122,12 @@ export async function createAsaasCharge({
       },
     };
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-        console.error("Erro Asaas:", error.response?.data || error.message);
-    }
+    // `error.response.data` costuma ecoar o campo que o Asaas rejeitou — que
+    // pode ser o próprio `cpfCnpj`. Fica só a mensagem.
+    console.error(
+      "Erro ao criar cobrança no gateway:",
+      error instanceof Error ? error.message : "erro desconhecido"
+    );
     throw new Error("Erro ao criar cobrança no gateway.");
   }
 }

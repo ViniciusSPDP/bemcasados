@@ -15,7 +15,10 @@ services:
     ports:
       # Só na interface local — sem o 127.0.0.1 o Docker publica na rede toda
       # e fura o firewall do host.
-      - '127.0.0.1:5433:5432'
+      #
+      # A porta é parametrizável porque é comum ter outro projeto ocupando a
+      # padrão. Se mudar aqui, ajuste a porta na DATABASE_URL do .env também.
+      - '127.0.0.1:${POSTGRES_PORT:-5433}:5432'
     volumes:
       - db_data:/var/lib/postgresql/data
 
@@ -24,8 +27,8 @@ services:
     container_name: bem_casados_minio
     command: server /data --console-address ":9001"
     ports:
-      - '127.0.0.1:9002:9000'
-      - '127.0.0.1:9003:9001'
+      - '127.0.0.1:${MINIO_PORT:-9002}:9000'
+      - '127.0.0.1:${MINIO_CONSOLE_PORT:-9003}:9001'
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?defina MINIO_ROOT_USER no .env}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?defina MINIO_ROOT_PASSWORD no .env}
@@ -41,7 +44,7 @@ services:
     # tudo num restart é aceitável e evita gravar chave de IP em disco.
     command: redis-server --save "" --appendonly no
     ports:
-      - '127.0.0.1:6379:6379'
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
 
 volumes:
   db_data:

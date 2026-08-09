@@ -19,7 +19,7 @@ const CONTATO_ENCARREGADO = "[privacidade@bemcasadosapp.com.br]";
 
 export default function PoliticaDePrivacidadePage() {
   return (
-    <LegalPage title="Política de Privacidade" updatedAt="4 de agosto de 2026">
+    <LegalPage title="Política de Privacidade" updatedAt="9 de agosto de 2026">
       <p>
         Esta política explica como o BemCasados trata dados pessoais, em conformidade
         com a Lei nº 13.709/2018 (LGPD). Ela vale tanto para os casais que criam uma
@@ -53,6 +53,30 @@ export default function PoliticaDePrivacidadePage() {
           versão mascarada (por exemplo, <code>•••.•••.890-••</code>), suficiente para o
           casal reconhecer o pagamento e para atendimento.
         </p>
+        <p>
+          <strong>Do convidado que reserva um presente na vitrine:</strong> nome,
+          telefone e a mensagem opcional deixada ao casal.
+        </p>
+        <p>
+          <strong>Do convidado que confirma presença:</strong> nome, telefone, se vai
+          ou não ao casamento, o recado opcional e — quando ele leva acompanhantes —{" "}
+          <strong>o nome das pessoas que vão com ele</strong>.
+        </p>
+        <p>
+          O nome do acompanhante é informado por quem confirma, e não pela própria
+          pessoa. Ele serve apenas para o casal saber quantos e quem esperar na
+          cerimônia, não é usado para nenhuma outra finalidade e não é cruzado com
+          nenhum outro dado. Se você é acompanhante e não quer que seu nome conste,
+          basta pedir a quem confirmou que retire — ou escrever para o contato no
+          fim desta página.
+        </p>
+        <p>
+          A vitrine é uma lista de produtos vendidos por lojas parceiras (como o Mercado
+          Livre). A compra acontece no site da loja, fora do BemCasados, e por isso{" "}
+          <strong>nessa modalidade não coletamos nenhum dado de pagamento</strong> — nem
+          CPF, nem cartão, nem valor. A reserva serve apenas para avisar os outros
+          convidados de que aquele presente já está garantido.
+        </p>
       </LegalSection>
 
       <LegalSection title="3. Para que usamos e com qual base legal">
@@ -74,13 +98,31 @@ export default function PoliticaDePrivacidadePage() {
             base legal: cumprimento de obrigação legal, art. 7º, II.
           </li>
           <li>
+            <strong>Registrar a reserva de um presente da vitrine</strong> (nome,
+            telefone, mensagem) — base legal: execução de contrato e procedimentos
+            preliminares a pedido do titular, art. 7º, V. O convidado informa esses
+            dados por iniciativa própria, para que o casal saiba quem vai dar aquele
+            presente e possa combinar a entrega. O telefone{" "}
+            <strong>não é usado para publicidade</strong> e não alimenta nenhuma lista
+            de contatos nossa.
+          </li>
+          <li>
+            <strong>Registrar a confirmação de presença</strong> (nome, telefone, se vai
+            ou não, recado e nome dos acompanhantes) — base legal: execução de contrato
+            e procedimentos preliminares a pedido do titular, art. 7º, V. Serve para o
+            casal fechar o número de convidados com o local e o serviço de alimentação.
+            Não usamos para publicidade e não montamos lista de contatos.
+          </li>
+          <li>
             <strong>Segurança e prevenção a fraude</strong> (registros de acesso) — base
             legal: legítimo interesse, art. 7º, IX.
           </li>
         </ul>
         <p>
           Não usamos dados pessoais para publicidade, não fazemos perfilamento e não
-          vendemos dados a terceiros.
+          vendemos dados a terceiros. Também não recebemos comissão sobre dados: a
+          remuneração da vitrine, quando existe, vem da loja parceira pela indicação do
+          produto, nunca do tratamento de dados de quem reserva.
         </p>
       </LegalSection>
 
@@ -95,6 +137,16 @@ export default function PoliticaDePrivacidadePage() {
             dados e as imagens.
           </li>
           <li>
+            <strong>Lojas parceiras (Mercado Livre)</strong> — a vitrine exibe links
+            para produtos vendidos por terceiros. Ao clicar em &ldquo;Comprar&rdquo;,
+            você sai do BemCasados e passa a ser regido pela política de privacidade da
+            loja. <strong>Não enviamos a ela seu nome, telefone ou mensagem</strong>: o
+            link identifica apenas o produto e a origem da indicação, e pode gerar
+            comissão para o BemCasados. As fotos dos produtos são copiadas para o nosso
+            próprio armazenamento e servidas por nós — justamente para que a loja não
+            consiga rastrear quem visita a página do casamento.
+          </li>
+          <li>
             <strong>Autoridades públicas</strong> — apenas mediante requisição legal.
           </li>
         </ul>
@@ -102,6 +154,16 @@ export default function PoliticaDePrivacidadePage() {
           A página pública do casamento é acessível por qualquer pessoa que tenha o
           endereço. As fotos e textos que o casal publica ali ficam visíveis a quem
           acessar o link.
+        </p>
+        <p>
+          Na vitrine, um presente já reservado aparece para os demais convidados apenas
+          como <strong>&ldquo;reservado&rdquo;</strong>: o nome, o telefone e a mensagem
+          de quem reservou são visíveis somente para o casal, dentro do painel.
+        </p>
+        <p>
+          As <strong>confirmações de presença</strong> seguem a mesma regra: a lista de
+          quem confirmou, os telefones e os nomes dos acompanhantes ficam apenas no
+          painel do casal. Nenhum convidado vê quem mais vai ao casamento.
         </p>
       </LegalSection>
 
@@ -115,6 +177,19 @@ export default function PoliticaDePrivacidadePage() {
           <li>
             <strong>Conta e conteúdo do evento</strong> (fotos, textos, lista): enquanto a
             conta existir. Encerrada a conta, são excluídos.
+          </li>
+          <li>
+            <strong>Reservas da vitrine</strong> (nome, telefone, mensagem): enquanto a
+            reserva existir. Quando o casal libera o presente pelo painel, os dados da
+            reserva são <strong>apagados imediatamente</strong> — não guardamos
+            histórico de reservas desfeitas. Encerrada a conta do casal, as reservas são
+            excluídas junto com o evento.
+          </li>
+          <li>
+            <strong>Confirmações de presença</strong> (nome, telefone, acompanhantes,
+            recado): enquanto a conta do casal existir. Encerrada a conta, são excluídas
+            junto com o evento. O casal pode apagar uma confirmação a qualquer momento
+            pelo painel.
           </li>
           <li>
             <strong>Registros de acesso</strong>: 6 meses, conforme o Marco Civil da

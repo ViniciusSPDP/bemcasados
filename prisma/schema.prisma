@@ -44,11 +44,26 @@ model Event {
   introSubtitle String @default("PARA UMA MISSÃO ESPECIAL")
   welcomeMessage String? @db.Text
 
+  // Convite (`/{slug}/convite`). Tudo opcional: um evento criado antes desta
+  // tela continua válido, e o convite esconde a seção que não foi preenchida.
+  // Imagem de fundo do convite. Separada da galeria de propósito: a foto do
+  // convite é uma escolha de composição (precisa funcionar bem apagada, atrás
+  // de texto), e as dos stories são outra coisa.
+  inviteImageUrl  String? // chave do NOSSO bucket, nunca URL externa
+  monogram        String? // "J | J" — iniciais no topo do convite
+  inviteVerse     String? @db.Text // versículo ou frase de abertura
+  ceremonyTime    String? // "20:30" — `eventDate` guarda só a data na prática
+  ceremonyVenue   String? // "Igreja Matriz de São José"
+  ceremonyAddress String? @db.Text // endereço por extenso, exibido ao convidado
+  ceremonyMapsUrl String? @db.Text // link do mapa; host validado no servidor
+
   asaasApiKey String?
   walletId    String?
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   gifts       Gift[]
+  externalGifts ExternalGift[]
+  rsvps       Rsvp[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -101,6 +116,11 @@ model Transaction {
   paymentLink   String?
   status        String  @default("PENDING")
   paymentMethod String
+  // Em cobrança parcelada o Asaas guarda o TOTAL em `amountCharged`, mas
+  // `GET /payments/<id>` devolve o valor de UMA parcela. Sem saber em quantas
+  // vezes foi, o webhook não tem como conferir se o valor pago confere.
+  // Nulo nas transações anteriores a este campo — ali a conferência é pulada.
+  installments  Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -109,11 +129,90 @@ model Transaction {
 model GalleryItem {
   id        String   @id @default(cuid())
   imageUrl  String
-  caption   String?  
-  
+  caption   String?
+
   eventId   String
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
-  orderIndex Int @default(0) 
+  orderIndex Int @default(0)
+}
+
+// Presente da vitrine do Mercado Livre.
+//
+// É um modelo separado de `Gift` de propósito: aqui não existe preço, taxa,
+// transação nem webhook — o convidado compra no site da loja e a compra não
+// passa por nós. Misturar os dois num modelo só com um discriminador deixaria
+// metade das colunas nula em cada fluxo e arriscaria o caminho do Asaas.
+model ExternalGift {
+  id      String @id @default(uuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String? @db.Text
+  imageUrl    String? // chave do NOSSO bucket, nunca a URL do ML
+  // Não há preço aqui de propósito: o valor no Mercado Livre varia (promoção,
+  // vendedor, frete) e um número congelado no nosso banco enganaria o convidado
+  // — ele veria um preço e encontraria outro na loja.
+  // O link curto ORIGINAL, exatamente como o casal colou. É ele que carrega o
+  // código de afiliado: guardar o endereço resolvido no lugar dele perderia a
+  // comissão. Por isso a URL resolvida não é persistida em nenhum campo.
+  shortUrl    String  @db.Text
+  externalId  String? // MLB123456789 quando dá para extrair; null é o normal
+
+  // Reserva. Não expira: o casal libera pelo painel.
+  reservedAt      DateTime?
+  reservedName    String?
+  reservedPhone   String?
+  reservedMessage String?   @db.Text
+
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // O Postgres trata NULL como distinto num índice único, então vários itens
+  // com `externalId` nulo (o caso do cadastro manual) continuam permitidos —
+  // o dedupe só age quando conseguimos extrair o id do anúncio.
+  @@unique([eventId, externalId])
+  @@index([eventId, orderIndex])
+  // `/api/media` confere se a chave está referenciada antes de servir a imagem,
+  // e a página do casamento carrega ~20 imagens de uma vez.
+  @@index([imageUrl])
+}
+
+// Confirmação de presença do convidado (`/{slug}/convite`).
+//
+// Não há cadastro prévio: qualquer um com o link responde. O que identifica a
+// pessoa é o telefone, e é por ele que a resposta é corrigida depois.
+model Rsvp {
+  id      String @id @default(uuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  name    String
+  phone   String // só dígitos, como `ExternalGift.reservedPhone`
+  // "SIM" | "NAO". String e não enum, seguindo o resto do schema
+  // (`Transaction.status` é assim). Quem não vai também é registrado: para o
+  // casal, "respondeu que não" e "não respondeu" são situações diferentes.
+  status  String
+  message String? @db.Text
+
+  // Nomes dos acompanhantes, na ordem em que foram digitados. Um array de texto
+  // evita uma tabela e um join para uma lista curta (2–5 nomes) que nunca é
+  // consultada sozinha e sempre é lida junto com o convidado que a preencheu.
+  //
+  // O TOTAL de pessoas NÃO é gravado: é `1 + companions.length`, calculado na
+  // leitura. Guardar o número junto abriria a chance de ele divergir dos nomes.
+  companions String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Um telefone confirma uma vez por evento. É o que permite ao convidado
+  // corrigir a resposta em vez de criar uma segunda linha — e o que impede a
+  // lista de encher de duplicata quando alguém envia duas vezes ou de duas abas.
+  // A ação usa `upsert` sobre esta chave: a unicidade é garantida pelo banco.
+  @@unique([eventId, phone])
+  @@index([eventId, createdAt])
 }

@@ -7,21 +7,32 @@ import { mediaUrl } from "@/lib/media";
 // Componentes
 import { GiftForm } from "@/components/private/admin/gift-form";
 import { EventSettingsForm } from "@/components/private/admin/event-settings-form";
+import { ExternalGiftForm } from "@/components/private/admin/external-gift-form";
+import { ExternalGiftAdminList } from "@/components/private/admin/external-gift-admin-list";
+import { ExternalGiftImport } from "@/components/private/admin/external-gift-import";
+import { RsvpList } from "@/components/private/admin/rsvp-list";
+import { toAdminRsvp } from "@/lib/rsvp";
+import { InviteSettingsForm } from "@/components/private/admin/invite-settings-form";
+import { AccountSettingsForm } from "@/components/private/admin/account-settings-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Image from "next/image";
 
 // Ícones
-import { 
-  Trash2, 
-  DollarSign, 
-  Gift, 
-  TrendingUp, 
-  AlertCircle, 
-  LogOut, 
-  Settings, 
+import {
+  Trash2,
+  DollarSign,
+  Gift,
+  TrendingUp,
+  AlertCircle,
+  LogOut,
+  Settings,
   LayoutDashboard,
   ExternalLink,
-  Heart
+  Heart,
+  ShoppingBag,
+  ScrollText,
+  UserCog,
+  Users
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -51,10 +62,19 @@ export default async function AdminPage() {
             title: true,
             coupleName: true,
             eventDate: true,
+            // Só nome e e-mail: o hash da senha nunca sai do servidor.
+            user: { select: { name: true, email: true } },
             introTitle: true,
             introSubtitle: true,
             welcomeMessage: true,
             videoUrl: true,
+            monogram: true,
+            inviteVerse: true,
+            ceremonyTime: true,
+            ceremonyVenue: true,
+            ceremonyAddress: true,
+            ceremonyMapsUrl: true,
+            inviteImageUrl: true,
             galleryItems: {
                 orderBy: { orderIndex: 'asc' }
             }
@@ -104,6 +124,41 @@ export default async function AdminPage() {
         where: { eventId: event.id },
         orderBy: { createdAt: "desc" },
     })).map((gift) => ({ ...gift, imageUrl: mediaUrl(gift.imageUrl) }));
+
+    // Aqui os dados de quem reservou SÃO carregados de propósito: esta tela é do
+    // casal e é o único lugar onde o nome e o telefone do convidado aparecem.
+    const externalGifts = (await prisma.externalGift.findMany({
+        where: { eventId: event.id },
+        orderBy: [{ orderIndex: "asc" }, { createdAt: "desc" }],
+        select: {
+            id: true,
+            title: true,
+            imageUrl: true,
+            shortUrl: true,
+            reservedAt: true,
+            reservedName: true,
+            reservedPhone: true,
+            reservedMessage: true,
+        },
+    })).map((item) => ({ ...item, imageUrl: mediaUrl(item.imageUrl) }));
+
+    // A lista de presenças existe SÓ aqui. Nenhuma página pública a consulta —
+    // nem o convite, que é de onde o convidado responde. `toAdminRsvp` é a
+    // segunda trava: ela fixa o que atravessa a fronteira para o Client
+    // Component, e o `eventId` fica de fora.
+    const rsvps = (await prisma.rsvp.findMany({
+        where: { eventId: event.id },
+        orderBy: { createdAt: "desc" },
+        select: {
+            id: true,
+            name: true,
+            phone: true,
+            status: true,
+            message: true,
+            companions: true,
+            createdAt: true,
+        },
+    })).map(toAdminRsvp);
 
     const ticketMedio = totalGiftsSold > 0
         ? Number(totalReceived._sum.amountOriginal || 0) / totalGiftsSold
@@ -169,11 +224,35 @@ export default async function AdminPage() {
                     >
                         <LayoutDashboard size={18}/> Painel
                     </TabsTrigger>
-                    <TabsTrigger 
-                        value="settings" 
+                    <TabsTrigger
+                        value="convite"
+                        className="px-6 py-2.5 rounded-lg data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2 text-gray-600"
+                    >
+                        <ScrollText size={18}/> Convite
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="presencas"
+                        className="px-6 py-2.5 rounded-lg data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2 text-gray-600"
+                    >
+                        <Users size={18}/> Presenças
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="vitrine"
+                        className="px-6 py-2.5 rounded-lg data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2 text-gray-600"
+                    >
+                        <ShoppingBag size={18}/> Vitrine
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="settings"
                         className="px-6 py-2.5 rounded-lg data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2 text-gray-600"
                     >
                         <Settings size={18}/> Personalizar
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="conta"
+                        className="px-6 py-2.5 rounded-lg data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2 text-gray-600"
+                    >
+                        <UserCog size={18}/> Conta
                     </TabsTrigger>
                 </TabsList>
             </div>
@@ -325,10 +404,103 @@ export default async function AdminPage() {
                 </div>
             </TabsContent>
 
-            {/* ABA 2: CONFIGURAÇÕES (Stories, Fotos, Textos) */}
+            {/* ABA 2: CONVITE (a página que o casal manda aos convidados) */}
+            <TabsContent value="convite" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="max-w-3xl mx-auto">
+                    {/*
+                      Campos listados um a um em vez de espalhar `event`: este é
+                      um Client Component, e o objeto do evento carrega junto os
+                      dados da conta (`user.email`), que não têm o que fazer no
+                      HTML desta aba. A chave da imagem vira `/api/media/...`
+                      aqui, na borda de renderização.
+                    */}
+                    <InviteSettingsForm
+                        event={{
+                            slug: event.slug,
+                            monogram: event.monogram,
+                            inviteVerse: event.inviteVerse,
+                            ceremonyTime: event.ceremonyTime,
+                            ceremonyVenue: event.ceremonyVenue,
+                            ceremonyAddress: event.ceremonyAddress,
+                            ceremonyMapsUrl: event.ceremonyMapsUrl,
+                            inviteImageUrl: mediaUrl(event.inviteImageUrl),
+                        }}
+                    />
+                </div>
+            </TabsContent>
+
+            {/* ABA 3: PRESENÇAS (quem confirmou pelo convite) */}
+            <TabsContent value="presencas" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="space-y-4">
+                    <div className="flex items-baseline justify-between">
+                        <h2 className="text-lg font-bold text-gray-800">Confirmações de presença</h2>
+                        <a
+                            href={`/${event.slug}/convite`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-rose-600 hover:text-rose-700 inline-flex items-center gap-1"
+                        >
+                            Ver o convite <ExternalLink size={14} />
+                        </a>
+                    </div>
+                    <RsvpList rsvps={rsvps} slug={event.slug} />
+                </div>
+            </TabsContent>
+
+            {/* ABA 4: VITRINE (presentes comprados fora, no Mercado Livre) */}
+            <TabsContent value="vitrine" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div className="lg:col-span-5 space-y-6">
+                        <ExternalGiftForm />
+                        <ExternalGiftImport />
+                    </div>
+                    <div className="lg:col-span-7 space-y-4">
+                        <div className="flex items-baseline justify-between">
+                            <h2 className="text-lg font-bold text-gray-800">Itens da vitrine</h2>
+                            <a
+                                href={`/${event.slug}/vitrine`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-rose-600 hover:text-rose-700 inline-flex items-center gap-1"
+                            >
+                                Ver a página <ExternalLink size={14} />
+                            </a>
+                        </div>
+                        <ExternalGiftAdminList items={externalGifts} />
+                    </div>
+                </div>
+            </TabsContent>
+
+            {/* ABA 5: CONTA (dados do casamento, endereço, e-mail e senha) */}
+            <TabsContent value="conta" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="max-w-3xl mx-auto">
+                    <AccountSettingsForm
+                        data={{
+                            coupleName: event.coupleName,
+                            title: event.title,
+                            // `Date` não atravessa a fronteira para o Client Component.
+                            eventDate: event.eventDate.toISOString(),
+                            slug: event.slug,
+                            userName: event.user.name,
+                            userEmail: event.user.email,
+                        }}
+                    />
+                </div>
+            </TabsContent>
+
+            {/* ABA 4: CONFIGURAÇÕES (Stories, Fotos, Textos) */}
             <TabsContent value="settings" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="max-w-3xl mx-auto">
-                    <EventSettingsForm event={event} />
+                    {/* Idem: só os campos que este formulário edita. */}
+                    <EventSettingsForm
+                        event={{
+                            introTitle: event.introTitle,
+                            introSubtitle: event.introSubtitle,
+                            welcomeMessage: event.welcomeMessage,
+                            videoUrl: event.videoUrl,
+                            galleryItems: event.galleryItems,
+                        }}
+                    />
                 </div>
             </TabsContent>
         </Tabs>

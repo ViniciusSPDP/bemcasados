@@ -12,7 +12,7 @@ import { mimeForKey, isSafeMediaKey } from "@/lib/media";
  *  1. a chave tem de casar com o formato que nós geramos (`<uuid>.<ext>`),
  *     o que já elimina path traversal e prefixos arbitrários;
  *  2. a chave tem de estar referenciada por algum registro do banco — só
- *     imagem que pertence a um presente ou a uma galeria é servida.
+ *     imagem que pertence a um presente, a uma galeria ou à vitrine é servida.
  */
 export async function GET(
     _req: Request,
@@ -33,12 +33,16 @@ export async function GET(
         return new NextResponse(null, { status: 404 });
     }
 
-    const [galleryItem, gift] = await Promise.all([
+    // Todo campo novo que guarde chave de imagem precisa entrar aqui, senão a
+    // imagem existe no bucket mas a rota responde 404.
+    const [galleryItem, gift, externalGift, invite] = await Promise.all([
         prisma.galleryItem.findFirst({ where: { imageUrl: key }, select: { id: true } }),
         prisma.gift.findFirst({ where: { imageUrl: key }, select: { id: true } }),
+        prisma.externalGift.findFirst({ where: { imageUrl: key }, select: { id: true } }),
+        prisma.event.findFirst({ where: { inviteImageUrl: key }, select: { id: true } }),
     ]);
 
-    if (!galleryItem && !gift) {
+    if (!galleryItem && !gift && !externalGift && !invite) {
         return new NextResponse(null, { status: 404 });
     }
 

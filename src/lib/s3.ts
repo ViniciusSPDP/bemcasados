@@ -2,6 +2,7 @@ import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3
 import { randomUUID } from "crypto";
 import sharp from "sharp";
 import { type AllowedMime } from "@/lib/media";
+import { MAX_UPLOAD_MB } from "@/lib/upload-limits";
 import "server-only";
 
 const s3Client = new S3Client({
@@ -14,8 +15,15 @@ const s3Client = new S3Client({
     forcePathStyle: true,
 });
 
-/** Tamanho máximo por arquivo enviado pelo painel do casal. */
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
+/**
+ * Tamanho máximo por arquivo enviado pelo painel do casal.
+ *
+ * O formulário comprime a foto no navegador antes de enviar, então na prática o
+ * que chega aqui é bem menor. Este teto vale para o que escapar desse caminho —
+ * e fica abaixo do limite de corpo das Server Actions, para o Next não precisar
+ * cortar o stream no meio.
+ */
+export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 
 export class UploadValidationError extends Error {}
 
@@ -61,21 +69,31 @@ const MAX_DIMENSION = 1920;
  * com `vary: Accept` e o Cloudflare não cacheia esse tipo de resposta. Fazendo
  * uma vez no upload, o que vai para o bucket já está pronto e a entrega fica
  * cacheada na borda.
+ *
+ * Aceita `File` (upload do painel) ou `Buffer` (imagem baixada de uma fonte
+ * externa já validada, como o CDN do Mercado Livre). O caminho é o mesmo de
+ * propósito: a validação por magic bytes e a conversão para WebP valem igual
+ * para os dois — e imagem de terceiro é justamente onde a validação mais
+ * importa.
  */
-export async function uploadFileToS3(file: File): Promise<string> {
+export async function uploadFileToS3(input: File | Buffer): Promise<string> {
     const bucketName = process.env.S3_BUCKET;
     if (!bucketName) throw new Error("S3_BUCKET não configurado");
 
-    if (file.size === 0) {
+    // O tamanho é conferido antes de materializar o conteúdo: no caminho do
+    // `File` isso evita puxar um arquivo enorme para a memória só para recusá-lo.
+    const size = Buffer.isBuffer(input) ? input.byteLength : input.size;
+
+    if (size === 0) {
         throw new UploadValidationError("Arquivo vazio.");
     }
-    if (file.size > MAX_UPLOAD_BYTES) {
+    if (size > MAX_UPLOAD_BYTES) {
         throw new UploadValidationError(
             `Arquivo maior que ${Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)}MB.`
         );
     }
 
-    const original = Buffer.from(await file.arrayBuffer());
+    const original = Buffer.isBuffer(input) ? input : Buffer.from(await input.arrayBuffer());
 
     // A validação continua sendo pelos magic bytes, antes de qualquer
     // processamento: é ela que impede um .html renomeado de entrar.

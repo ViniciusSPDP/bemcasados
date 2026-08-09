@@ -53,7 +53,7 @@ export async function POST(req: Request) {
 
         const transaction = await prisma.transaction.findUnique({
             where: { asaasId: payment.id },
-            select: { id: true, giftId: true, status: true, amountCharged: true },
+            select: { id: true, giftId: true, status: true, amountCharged: true, installments: true },
         });
 
         if (!transaction) {
@@ -69,6 +69,39 @@ export async function POST(req: Request) {
         const remote = await getAsaasPayment(payment.id);
         if (!PAID_STATUSES.has(remote.status)) {
             console.warn(`Webhook anunciou pagamento, mas o Asaas reporta ${remote.status}.`);
+            return NextResponse.json({ received: true }, { status: 200 });
+        }
+
+        // O status confirmado não diz QUANTO foi pago. Sem esta conferência, uma
+        // cobrança de R$ 1,00 confirmada no gateway liberaria um presente de
+        // R$ 2.500.
+        //
+        // O cuidado aqui é o parcelamento: `amountCharged` guarda o valor TOTAL,
+        // mas numa compra parcelada o Asaas devolve o valor de UMA parcela — por
+        // isso a comparação é contra `total / parcelas`. Transações anteriores à
+        // coluna `installments` têm o campo nulo; nelas a conferência é pulada,
+        // porque assumir 1 rejeitaria um parcelamento legítimo ainda pendente.
+        if (transaction.installments !== null) {
+            // Centavos: `remote.value` vem como número do JSON e `amountCharged`
+            // é Decimal — comparar float direto erraria por arredondamento.
+            const paidCents = Math.round(Number(remote.value) * 100);
+            const chargedCents = Math.round(Number(transaction.amountCharged) * 100);
+            const installments = Math.max(1, transaction.installments);
+            const expectedCents = Math.round(chargedCents / installments);
+
+            // O Asaas arredonda cada parcela, então a divisão não fecha exata
+            // (R$ 1.031,32 em 10x dá 10 × R$ 103,13 = R$ 1.031,30). A folga de um
+            // centavo por parcela cobre isso sem abrir espaço para pagar a menos.
+            if (!Number.isFinite(paidCents) || paidCents < expectedCents - installments) {
+                console.warn(`Webhook do pagamento ${transaction.id}: valor pago abaixo do cobrado.`);
+                return NextResponse.json({ received: true }, { status: 200 });
+            }
+        }
+
+        // `externalReference` é gravado por nós no checkout como o id do presente.
+        // Divergir aqui significa que este pagamento é de outro item.
+        if (remote.externalReference && remote.externalReference !== transaction.giftId) {
+            console.warn(`Webhook do pagamento ${transaction.id}: externalReference divergente.`);
             return NextResponse.json({ received: true }, { status: 200 });
         }
 

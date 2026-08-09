@@ -27,7 +27,7 @@ export async function createGift(formData: FormData): Promise<ActionResult> {
             key: `gift:create:${session.userId}`,
             limit: 30,
             windowSeconds: 60 * 60,
-            message: "Muitos presentes criados em pouco tempo. Tente novamente mais tarde.",
+            message: "Muitos presentes criados em pouco tempo.",
         });
     } catch (error) {
         if (error instanceof RateLimitError) return { success: false, message: error.message };

@@ -5,12 +5,15 @@ import { EventStories, StoryItem } from '@/components/public/event-stories';
 import Image from 'next/image';
 import { SerializedEvent, SerializedGift } from "./page";
 import { CheckoutModal } from '@/components/private/checkout/checkout-modal';
+import { formatEventDate } from '@/lib/event-date';
 // 1. ADICIONEI "Variants" NA IMPORTAÇÃO AQUI
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 
 interface PublicPageContentProps {
     event: SerializedEvent;
     galleryItems: StoryItem[];
+    /** Quantos itens o casal pôs na vitrine do Mercado Livre. */
+    externalGiftCount?: number;
 }
 
 // --- COMPONENTE: O ENVELOPE ANIMADO ---
@@ -137,7 +140,7 @@ function OpeningEnvelope({ onOpenComplete }: { onOpenComplete: () => void }) {
 
 
 // --- PÁGINA PRINCIPAL ---
-export function PublicPageContent({ event, galleryItems }: PublicPageContentProps) {
+export function PublicPageContent({ event, galleryItems, externalGiftCount = 0 }: PublicPageContentProps) {
     const [showEnvelope, setShowEnvelope] = useState(true);
     const [showStories, setShowStories] = useState(false);
     const [selectedGift, setSelectedGift] = useState<SerializedGift | null>(null);
@@ -188,8 +191,15 @@ export function PublicPageContent({ event, galleryItems }: PublicPageContentProp
                             <h1 className="text-xl md:text-2xl font-bold text-gray-800 font-serif">
                                 {event.coupleName}
                             </h1>
+                            {/*
+                              `formatEventDate` lê em UTC. Este bloco renderiza
+                              só depois da hidratação (fica atrás do envelope e
+                              dos stories), então o `toLocaleDateString` que
+                              estava aqui usava o fuso do CELULAR do convidado —
+                              e no Brasil, UTC-3, mostrava o dia anterior.
+                            */}
                             <p className="text-xs md:text-sm text-gray-500 uppercase tracking-widest mt-1">
-                                {new Date(event.eventDate).toLocaleDateString('pt-BR', { dateStyle: 'long' })}
+                                {formatEventDate(event.eventDate)}
                             </p>
                         </div>
                     </header>
@@ -238,6 +248,30 @@ export function PublicPageContent({ event, galleryItems }: PublicPageContentProp
                                 </div>
                             ))}
                         </div>
+
+                        {/* A vitrine tem página própria: o estado do envelope e dos
+                            stories vive aqui e não sobrevive a uma navegação, então
+                            uma aba interna não seria compartilhável nem sobreviveria
+                            a um refresh. */}
+                        {externalGiftCount > 0 && (
+                            <a
+                                href={`/${event.slug}/vitrine`}
+                                className="block bg-white border border-rose-100 rounded-xl p-6 text-center shadow-sm hover:shadow-md hover:border-rose-200 transition mb-12"
+                            >
+                                <h2 className="text-lg font-bold text-rose-900 mb-2 font-serif">
+                                    Presentes na loja
+                                </h2>
+                                <p className="text-gray-600 text-sm leading-relaxed">
+                                    {externalGiftCount}{' '}
+                                    {externalGiftCount === 1 ? 'item escolhido' : 'itens escolhidos'} pelo
+                                    casal no Mercado Livre. Você compra direto por lá e reserva aqui para
+                                    ninguém repetir.
+                                </p>
+                                <span className="inline-block mt-3 text-rose-600 font-medium text-sm">
+                                    Ver a vitrine →
+                                </span>
+                            </a>
+                        )}
                     </div>
                 </div>
             )}

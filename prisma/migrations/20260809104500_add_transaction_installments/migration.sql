@@ -1,0 +1,11 @@
+-- Em cobrança parcelada, `amountCharged` guarda o valor TOTAL, mas a consulta
+-- `GET /payments/<id>` do Asaas devolve o valor de UMA parcela. Sem saber em
+-- quantas vezes a compra foi feita, o webhook não consegue conferir se o valor
+-- pago corresponde ao cobrado — e passou a precisar disso para não liberar um
+-- presente caro com um pagamento menor.
+--
+-- Nulo de propósito, sem DEFAULT: as transações criadas antes desta coluna não
+-- têm essa informação, e assumir `1` faria o webhook rejeitar um parcelamento
+-- legítimo que ainda esteja pendente. Quando é nulo, a conferência é pulada.
+-- AlterTable
+ALTER TABLE "Transaction" ADD COLUMN     "installments" INTEGER;

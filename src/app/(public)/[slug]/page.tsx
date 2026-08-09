@@ -38,6 +38,9 @@ async function getEventData(slug: string) {
         where: { available: true },
         orderBy: { price: "asc" },
       },
+      // Só a contagem: a vitrine tem página própria e nada dela precisa ser
+      // serializado aqui.
+      _count: { select: { externalGifts: true } },
     },
   });
 }
@@ -134,8 +137,9 @@ export default async function EventPage({ params }: PageProps) {
 
   // 2. Serialização do Evento (Decimal -> Number)
   // `asaasApiKey` e `walletId` são segredos do casal e não podem sair do servidor.
+  // `_count` sai do spread para não virar campo do evento no HTML.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { asaasApiKey, walletId, ...publicEvent } = event;
+  const { asaasApiKey, walletId, _count, ...publicEvent } = event;
 
   const serializedEvent: SerializedEvent = {
     ...publicEvent,
@@ -150,6 +154,7 @@ export default async function EventPage({ params }: PageProps) {
     <PublicPageContent
       event={serializedEvent}
       galleryItems={finalStoryItems}
+      externalGiftCount={_count.externalGifts}
     />
   );
 }

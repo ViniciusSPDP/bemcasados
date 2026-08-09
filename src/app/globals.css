@@ -6,8 +6,17 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /*
+    Apontavam para `--font-geist-sans`/`--font-geist-mono`, que sobraram do
+    template do create-next-app e não existem em lugar nenhum. O efeito era
+    silencioso: `font-sans` gerava uma declaração inválida e `font-serif` caía
+    no stack padrão, então a Inter nunca era usada e todo `font-serif` do site
+    renderizava Georgia — apesar das duas fontes serem carregadas no layout.
+  */
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-playfair);
+  /* Caligráfica dos nomes do casal no convite. */
+  --font-script: var(--font-great-vibes);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

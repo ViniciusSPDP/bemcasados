@@ -103,14 +103,29 @@ export class RateLimitError extends Error {
     }
 }
 
+/**
+ * Transforma segundos em algo que se lê na tela.
+ *
+ * "Tente novamente mais tarde" deixa quem esbarrou no limite sem saber se espera
+ * um minuto ou uma hora — e a informação já existe, é só o TTL da chave.
+ */
+function formatRetryAfter(seconds: number): string {
+    if (seconds <= 60) return "menos de 1 minuto";
+    const minutes = Math.ceil(seconds / 60);
+    if (minutes < 60) return `${minutes} minuto${minutes === 1 ? "" : "s"}`;
+    const hours = Math.ceil(minutes / 60);
+    return `${hours} hora${hours === 1 ? "" : "s"}`;
+}
+
 /** Versão para Server Actions: lança quando o limite estoura. */
 export async function enforceRateLimit(
     options: RateLimitOptions & { message?: string }
 ): Promise<void> {
     const result = await checkRateLimit(options);
     if (!result.success) {
+        const base = options.message ?? "Muitas tentativas.";
         throw new RateLimitError(
-            options.message ?? "Muitas tentativas. Tente novamente em instantes.",
+            `${base} Tente de novo em ${formatRetryAfter(result.retryAfterSeconds)}.`,
             result.retryAfterSeconds
         );
     }

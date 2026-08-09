@@ -11,7 +11,10 @@ import type { NextConfig } from "next";
  * - `frame-src` do YouTube: o player de música de fundo dos stories.
  * - `frame-ancestors 'none'`: ninguém coloca este site em iframe (clickjacking
  *   no /admin e no checkout).
+ * - `upgrade-insecure-requests`: **só em produção**. Ver a nota abaixo.
  */
+const isProduction = process.env.NODE_ENV === "production";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -25,7 +28,20 @@ const contentSecurityPolicy = [
   "media-src 'self' blob:",
   "connect-src 'self'",
   "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
-  "upgrade-insecure-requests",
+
+  /**
+   * Em produção o site é HTTPS atrás do Cloudflare e esta diretiva é desejada:
+   * qualquer subrecurso que escape como `http://` é promovido em vez de virar
+   * conteúdo misto bloqueado.
+   *
+   * Em desenvolvimento ela **quebra o acesso pelo IP da máquina** — o caso de
+   * abrir o site no celular. O `next dev` serve HTTP puro, mas o navegador
+   * reescreve `http://<ip>:3000/_next/...` para `https://`, que não existe, e
+   * derruba CSS e JS. A página chega como texto cru e parece bug de código.
+   * Passa despercebido no PC, porque `localhost` é tratado como origem segura
+   * e fica de fora do upgrade — e no `curl`, que ignora CSP.
+   */
+  ...(isProduction ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
 const securityHeaders = [
@@ -55,6 +71,22 @@ const nextConfig: NextConfig = {
 
   // Não anunciar framework e versão no header.
   poweredByHeader: false,
+
+  /**
+   * Hosts autorizados a carregar os assets do servidor de desenvolvimento.
+   *
+   * Vale **só em `next dev`** — não tem efeito nenhum no build de produção.
+   * Sem isto, abrir o site pelo IP da máquina (para testar no celular) devolve
+   * o HTML normalmente mas responde **403 em todo `/_next/static/*`**, porque o
+   * Next confere o header `Origin`. O sintoma engana: a página aparece como
+   * texto cru, sem estilo e sem interatividade, como se o código estivesse
+   * errado. `curl` não reproduz, porque não manda `Origin`.
+   */
+  allowedDevOrigins: [
+    "192.168.1.42",      // Wi-Fi da máquina
+    "100.97.185.114",    // Tailscale
+    "desktop-m5n5on9.tail7ef843.ts.net",
+  ],
 
   experimental: {
     // Era 200mb. A galeria aceita no máximo 10 fotos de 5MB, e o limite alto

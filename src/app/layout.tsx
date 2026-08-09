@@ -1,10 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Playfair_Display } from "next/font/google"; // Supondo que você usa essas fontes
+import { Inter, Playfair_Display, Great_Vibes } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-// Fontes (Ajuste conforme as que você já está usando)
+// As variáveis são mapeadas para `font-sans`/`font-serif`/`font-script` no
+// globals.css. `next/font` faz self-host dos arquivos, então nada disso bate em
+// fonts.gstatic.com e a CSP (`font-src 'self' data:`) continua fechada.
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
+// Caligráfica do convite. Um peso só — é a única que a família oferece.
+const greatVibes = Great_Vibes({ subsets: ["latin"], weight: "400", variable: "--font-great-vibes" });
 
 // 1. URL BASE do seu site (Importante para SEO e compartilhamento)
 // Quando subir para produção, mude para "https://seusite.com.br"
@@ -62,6 +67,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1, // Evita zoom indesejado em inputs no iOS
+  // Sem `cover`, o iPhone reserva faixas nas bordas e o fundo do convite para
+  // antes do topo da tela. É também o que habilita `env(safe-area-inset-*)`,
+  // usado para o conteúdo não passar por baixo da Dynamic Island.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -70,9 +79,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} ${playfair.variable}`}>
+    <html lang="pt-BR" className={`${inter.variable} ${playfair.variable} ${greatVibes.variable}`}>
       <body className="antialiased bg-gray-50 text-gray-900 font-sans">
         {children}
+        {/*
+          Sem isto os `toast()` espalhados pelos formulários não aparecem em
+          lugar nenhum — o casal salvava um presente e não recebia confirmação
+          nem mensagem de erro.
+        */}
+        <Toaster richColors position="top-center" />
       </body>
     </html>
   );

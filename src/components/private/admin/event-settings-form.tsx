@@ -13,6 +13,8 @@ import Image from "next/image"
 import { toast } from "sonner"
 import { GalleryItem } from "@prisma/client"
 import { mediaUrl } from "@/lib/media"
+import { MAX_UPLOAD_MB, MAX_UPLOAD_BYTES_CLIENT, tooLargeMessage } from "@/lib/upload-limits"
+import { compressImage } from "@/lib/image-compress"
 
 /**
  * Só os campos que o formulário usa.
@@ -43,6 +45,7 @@ type LocalGalleryItem = LocalKeptItem | LocalNewItem;
 
 export function EventSettingsForm({ event }: EventSettingsFormProps) {
   const [isPending, setIsPending] = useState(false)
+  const [isCompressing, setIsCompressing] = useState(false)
   const router = useRouter()
   
   // Estado unificado para gerenciar a ordem e as legendas
@@ -59,25 +62,42 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
       }));
   });
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const files = Array.from(e.target.files)
-      
-      if (galleryItems.length + files.length > 10) {
+      const originals = Array.from(e.target.files)
+      e.target.value = ""
+
+      if (galleryItems.length + originals.length > 10) {
         toast.error("Máximo de 10 fotos permitido na galeria.")
         return
       }
 
-      const newItems: LocalNewItem[] = files.map(file => ({
-        type: 'new',
-        id: crypto.randomUUID(), // ID temporário para React key
-        file: file,
-        previewUrl: URL.createObjectURL(file),
-        caption: ''
-      }));
+      setIsCompressing(true)
+      try {
+        // Reduz cada foto no navegador antes de enviar. Sem isto, fotos de
+        // celular somadas estouram o limite de corpo das Server Actions e o Next
+        // corta o stream — o erro que chega é "Unexpected end of form", que não
+        // menciona tamanho nem qual arquivo.
+        const files = await Promise.all(originals.map(compressImage))
 
-      setGalleryItems(prev => [...prev, ...newItems]);
-      e.target.value = ""
+        const tooLarge = files.findIndex(f => f.size > MAX_UPLOAD_BYTES_CLIENT)
+        if (tooLarge >= 0) {
+          toast.error(tooLargeMessage(originals[tooLarge].name))
+          return
+        }
+
+        const newItems: LocalNewItem[] = files.map(file => ({
+          type: 'new',
+          id: crypto.randomUUID(), // ID temporário para React key
+          file: file,
+          previewUrl: URL.createObjectURL(file),
+          caption: ''
+        }));
+
+        setGalleryItems(prev => [...prev, ...newItems]);
+      } finally {
+        setIsCompressing(false)
+      }
     }
   }
 
@@ -135,8 +155,17 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
             router.refresh()
         }
     } catch (error) {
-        toast.error("Erro ao atualizar evento.")
-        console.error(error)
+        // O caso conhecido é o corpo cortado quando as fotos somadas passam do
+        // limite das Server Actions — o erro vem como "Unexpected end of form",
+        // que não diz nada ao casal. A checagem por arquivo no `handleFileSelect`
+        // cobre o arquivo isolado; aqui sobra o total e a queda de conexão.
+        const message = error instanceof Error ? error.message : ""
+        toast.error(
+            message.includes("end of form")
+                ? `Envio interrompido. Alguma foto é grande demais (o limite é ${MAX_UPLOAD_MB}MB cada) ou a conexão caiu.`
+                : "Não foi possível salvar. Verifique a conexão e tente de novo."
+        )
+        console.error("Falha ao atualizar as configurações do evento:", message)
     } finally {
         setIsPending(false)
     }
@@ -195,9 +224,20 @@ export function EventSettingsForm({ event }: EventSettingsFormProps) {
 
                 {/* Botão Upload */}
                 {galleryItems.length < 10 && (
-                    <label className="flex flex-col items-center justify-center aspect-9/16border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-rose-500 hover:bg-rose-50 transition bg-gray-50/50 h-full min-h-50">
-                        <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                        <span className="text-sm text-gray-500 font-medium text-center px-2">Adicionar Foto</span>
+                    <label className="flex flex-col items-center justify-center aspect-9/16 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-rose-500 hover:bg-rose-50 transition bg-gray-50/50 h-full min-h-50">
+                        {isCompressing ? (
+                            <>
+                                <Loader2 className="w-8 h-8 text-rose-500 mb-2 animate-spin" />
+                                <span className="text-sm text-gray-500 font-medium text-center px-2">
+                                    Preparando...
+                                </span>
+                            </>
+                        ) : (
+                            <>
+                                <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                                <span className="text-sm text-gray-500 font-medium text-center px-2">Adicionar Foto</span>
+                            </>
+                        )}
                         <input 
                             type="file" 
                             accept="image/*" 
