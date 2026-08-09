@@ -268,7 +268,18 @@ máquina e leva ~12 min.
 - App: serviço `app_app-bem-casados` · Banco: `dados_bem_casados_db` (database
   `dados`, user `postgres`) · Storage: `dados_minio` · Redis:
   `dados_redis-bemcasados`
-- Auto-deploy dispara no push para `main`.
+- **O auto-deploy no push para `main` NÃO funciona.** O webhook do GitHub aponta
+  para `http://92.113.39.84:3000/api/deploy/<token>`, que é o painel do
+  EasyPanel — e a porta 3000 está fechada para a internet (de propósito: painel
+  de infra exposto é superfície séria). Toda entrega desde 8/8/2026 falhou com
+  `502 failed to connect to host`, silenciosamente, e foi por isso que a vitrine
+  ficou dias na `main` sem subir. **Confira o histórico do webhook** antes de
+  assumir que um push virou deploy:
+  `gh api repos/ViniciusSPDP/bemcasados/hooks/<id>/deliveries`.
+  Para disparar agora, chame a mesma URL **de dentro da VPS**, trocando o host
+  por `localhost`. Correção de verdade ainda pendente: expor o endpoint por
+  Traefik com HTTPS e allowlist dos IPs do GitHub, ou trocar por GitHub Actions
+  com deploy via SSH.
 - `prisma migrate deploy` roda no start do container (`CMD` do Dockerfile). Se a
   migration falhar, o `&&` impede o start e o site fica fora.
 - Logs de build do EasyPanel em `/etc/easypanel/actions/*.log`.
