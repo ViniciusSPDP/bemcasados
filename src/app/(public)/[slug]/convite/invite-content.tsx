@@ -232,17 +232,36 @@ export function InviteContent({
                     </p>
 
                     {/* Data no formato do convite impresso: dia grande entre filetes,
-                        com o dia da semana à esquerda e o horário à direita. */}
+                        com o mês à esquerda e o horário à direita.
+
+                        O miolo é uma GRADE `1fr auto 1fr`, e não um flex: as duas
+                        colunas laterais ficam com a MESMA largura, então o número
+                        do dia cai no centro exato do bloco — e o dia da semana e o
+                        ano, centralizados no mesmo bloco, se alinham com ele.
+
+                        Com flex o dia ficava onde sobrasse, deslocado pela
+                        diferença de largura entre o mês e a hora: "MAIO 08 20:30h"
+                        empurrava o número para a esquerda e "OUTUBRO 25 15:00h"
+                        para a direita. O olho lê o número grande como o centro,
+                        então DOMINGO e 2026 pareciam tortos em cima dele.
+
+                        A coluna da hora ocupa espaço mesmo vazia, de propósito:
+                        sem horário cadastrado o dia continua centralizado, em vez
+                        de escorregar para a direita. */}
                     <div className="mt-8 flex items-center justify-center gap-4 text-[#c9a227]">
                         <span className="h-px flex-1 bg-[#c9a227]/40" />
                         <div className="shrink-0">
                             <p className="text-[0.65rem] uppercase tracking-[0.2em]">{weekday}</p>
-                            <div className="flex items-baseline justify-center gap-2">
-                                <span className="text-[0.65rem] uppercase tracking-[0.2em]">{month}</span>
-                                <span className="font-serif text-4xl text-white [text-shadow:0_2px_6px_rgba(0,0,0,0.5)]">{day}</span>
-                                {time && (
-                                    <span className="text-[0.65rem] uppercase tracking-[0.2em]">{time}h</span>
-                                )}
+                            <div className="grid grid-cols-[1fr_auto_1fr] items-baseline gap-2">
+                                <span className="justify-self-end text-[0.65rem] uppercase tracking-[0.2em]">
+                                    {month}
+                                </span>
+                                <span className="font-serif text-4xl text-white [text-shadow:0_2px_6px_rgba(0,0,0,0.5)]">
+                                    {day}
+                                </span>
+                                <span className="justify-self-start text-[0.65rem] uppercase tracking-[0.2em]">
+                                    {time ? `${time}h` : ""}
+                                </span>
                             </div>
                             <p className="text-[0.65rem] tracking-[0.2em]">{year}</p>
                         </div>
