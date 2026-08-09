@@ -14,6 +14,27 @@ import { mimeForKey, isSafeMediaKey } from "@/lib/media";
  *  2. a chave tem de estar referenciada por algum registro do banco — só
  *     imagem que pertence a um presente, a uma galeria ou à vitrine é servida.
  */
+
+/**
+ * 404 que a borda **não** pode guardar.
+ *
+ * Sem o `no-store`, o Cloudflare cacheia a resposta negativa por 4 horas (é o
+ * padrão dele; a rota nunca mandou `Cache-Control` no caminho de erro). O 404
+ * aqui é quase sempre TEMPORÁRIO: a chave passa a existir assim que a linha do
+ * banco é gravada. Uma foto pedida um instante antes do commit da Server Action
+ * — ou uma chave reapontada depois — ficava quebrada por 4 horas para todo mundo
+ * que passasse pelo mesmo nó da borda, sem nada que o casal pudesse fazer.
+ * Aconteceu em produção com a imagem do convite em 9/8/2026.
+ *
+ * O 200 continua `immutable`: ali a chave é um uuid novo a cada upload e o
+ * conteúdo nunca muda.
+ */
+function notFound() {
+    return new NextResponse(null, {
+        status: 404,
+        headers: { "Cache-Control": "no-store" },
+    });
+}
 export async function GET(
     _req: Request,
     { params }: { params: Promise<{ key: string }> }
@@ -26,11 +47,11 @@ export async function GET(
     try {
         key = decodeURIComponent(rawKey);
     } catch {
-        return new NextResponse(null, { status: 404 });
+        return notFound();
     }
 
     if (!isSafeMediaKey(key)) {
-        return new NextResponse(null, { status: 404 });
+        return notFound();
     }
 
     // Todo campo novo que guarde chave de imagem precisa entrar aqui, senão a
@@ -43,17 +64,17 @@ export async function GET(
     ]);
 
     if (!galleryItem && !gift && !externalGift && !invite) {
-        return new NextResponse(null, { status: 404 });
+        return notFound();
     }
 
     const contentType = mimeForKey(key);
     if (!contentType) {
-        return new NextResponse(null, { status: 404 });
+        return notFound();
     }
 
     try {
         const body = await getObjectBody(key);
-        if (!body) return new NextResponse(null, { status: 404 });
+        if (!body) return notFound();
 
         return new NextResponse(body.transformToWebStream(), {
             headers: {
@@ -66,6 +87,6 @@ export async function GET(
             },
         });
     } catch {
-        return new NextResponse(null, { status: 404 });
+        return notFound();
     }
 }
