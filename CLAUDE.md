@@ -265,6 +265,16 @@ VPS `92.113.39.84` (root via SSH, chave já no PC) com **EasyPanel + Docker Swar
 + Traefik**, Cloudflare na frente. **Só 2 núcleos** — um build do Next satura a
 máquina e leva ~12 min.
 
+**Durante o build o site em produção fica lento a ponto de o Cloudflare
+responder 522** (origem não respondeu a tempo), e a troca de container gera uma
+janela curta de **502**. Nenhum dos dois é queda: medido em 9/8/2026, com load
+3,4 nos 2 núcleos. Ao vigiar um deploy, exija **várias falhas seguidas** antes de
+tratar como incidente — e prefira um sinal positivo do que a ausência de erro. O
+melhor sinal de que o container novo assumiu é **a migration ter aplicado**:
+consulte `information_schema.columns` pela coluna que ela cria. Sinal ruim é
+procurar uma classe CSS ou um texto que já podia existir na versão antiga — eu
+declarei um deploy concluído assim, e ele nem tinha começado.
+
 - App: serviço `app_app-bem-casados` · Banco: `dados_bem_casados_db` (database
   `dados`, user `postgres`) · Storage: `dados_minio` · Redis:
   `dados_redis-bemcasados`
